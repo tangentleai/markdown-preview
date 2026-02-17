@@ -13,7 +13,7 @@
         "Run: npm run build",
         "Verify dist/ directory contains correct build artifacts"
       ],
-      "passes": false
+      "passes": true
     },
     "R2": {
       "category": "functional",
@@ -25,7 +25,7 @@
         "Check package.json contains required dependencies",
         "Check vite.config.ts is configured correctly"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",
@@ -38,7 +38,7 @@
         "Input Markdown text in the input box",
         "Verify the input box accepts and displays input correctly"
       ],
-      "passes": false
+      "passes": true
     },
     "R4": {
       "category": "functional",
@@ -50,7 +50,7 @@
         "Input Markdown text, verify preview updates in real-time",
         "Test rendering of headings, lists, links, code blocks, etc."
       ],
-      "passes": false
+      "passes": true
     },
     "R5": {
       "category": "functional",
@@ -62,7 +62,7 @@
         "Input Markdown text with tables and task lists",
         "Verify rendering matches GFM specification"
       ],
-      "passes": false
+      "passes": true
     },
     "R6": {
       "category": "functional",
@@ -74,7 +74,7 @@
         "Input Markdown text with code blocks",
         "Verify syntax highlighting is applied"
       ],
-      "passes": false
+      "passes": true
     },
     "R7": {
       "category": "functional",
@@ -86,7 +86,7 @@
         "Input Markdown text with mathematical formulas",
         "Verify formulas render correctly"
       ],
-      "passes": false
+      "passes": true
     },
     "R8": {
       "category": "functional",
@@ -99,7 +99,7 @@
         "Verify interface layout matches design",
         "Check input and preview area proportions"
       ],
-      "passes": false
+      "passes": true
     },
     "R9": {
       "category": "functional",
@@ -112,7 +112,7 @@
         "Verify layout is responsive",
         "Check display on mobile devices"
       ],
-      "passes": false
+      "passes": true
     },
     "R10": {
       "category": "functional",
@@ -124,7 +124,7 @@
         "Check application colors, fonts, and spacing",
         "Verify responsive behavior of interface elements"
       ],
-      "passes": false
+      "passes": true
     },
     "R11": {
       "category": "functional",
@@ -136,7 +136,7 @@
         "Check tailwind.config.js and postcss.config.js",
         "Verify src/index.css contains Tailwind directives"
       ],
-      "passes": false
+      "passes": true
     },
     "R12": {
       "category": "functional",
@@ -149,7 +149,7 @@
         "Verify build artifacts directory structure and file sizes",
         "Check for unused dependencies and code"
       ],
-      "passes": false
+      "passes": true
     },
     "R13": {
       "category": "testing",
@@ -175,7 +175,7 @@
         "Verify application features are working",
         "Test all interactive flows"
       ],
-      "passes": false
+      "passes": true
     }
   }
 }

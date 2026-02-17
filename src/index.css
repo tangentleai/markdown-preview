@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Markdown 预览样式 */
+.markdown-preview {
+  @apply prose prose-gray max-w-none p-4;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  @apply font-bold text-gray-900;
+}
+
+.markdown-preview p {
+  @apply text-gray-700 leading-relaxed;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  @apply text-gray-700;
+}
+
+.markdown-preview code {
+  @apply bg-gray-100 px-1 py-0.5 rounded text-gray-800;
+}
+
+.markdown-preview pre {
+  @apply bg-gray-900 rounded-lg p-4 overflow-x-auto;
+}
+
+.markdown-preview pre code {
+  @apply bg-transparent text-gray-100;
+}
+
+.markdown-preview table {
+  @apply w-full border-collapse border border-gray-300;
+}
+
+.markdown-preview th,
+.markdown-preview td {
+  @apply border border-gray-300 px-4 py-2 text-left;
+}
+
+.markdown-preview th {
+  @apply bg-gray-50 font-semibold;
+}
+
+.markdown-preview img {
+  @apply max-w-full h-auto rounded-lg;
+}
+
+.markdown-preview blockquote {
+  @apply border-l-4 border-gray-300 pl-4 italic text-gray-600;
+}

@@ -1,0 +1,12 @@
+
+> markdown-preview@0.0.0 dev
+> vite --port 33100
+
+
+  VITE v5.4.21  ready in 156 ms
+
+  ➜  Local:   http://localhost:33100/
+  ➜  Network: use --host to expose
+(node:76795) ExperimentalWarning: CommonJS module /Users/tlh/Code/markdown-preview/node_modules/tailwindcss/lib/lib/load-config.js is loading ES Module /Users/tlh/Code/markdown-preview/tailwind.config.js using require().
+Support for loading ES Module in require() is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
