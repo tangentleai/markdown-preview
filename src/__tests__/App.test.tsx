@@ -13,14 +13,14 @@ describe('App component', () => {
     render(<App />)
     
     expect(screen.getAllByText('Markdown Preview')).toHaveLength(2)
-    expect(screen.getByText('功能特性')).toBeInTheDocument()
-    expect(screen.getByText('使用方法')).toBeInTheDocument()
+    expect(screen.getByText('功能特性')).toBeTruthy()
+    expect(screen.getByText('使用方法')).toBeTruthy()
   })
 
   it('should render both MarkdownInput and MarkdownPreview components', () => {
     render(<App />)
     
-    expect(screen.getByText('Markdown 输入')).toBeInTheDocument()
-    expect(screen.getByText('预览效果')).toBeInTheDocument()
+    expect(screen.getByText('Markdown 输入')).toBeTruthy()
+    expect(screen.getByText('预览效果')).toBeTruthy()
   })
 })

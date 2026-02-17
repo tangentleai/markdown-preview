@@ -5,13 +5,13 @@ import MarkdownInput from '../components/MarkdownInput'
 describe('MarkdownInput component', () => {
   it('should render the Markdown Input header', () => {
     render(<MarkdownInput markdown="" setMarkdown={() => {}} />)
-    expect(screen.getByText('Markdown 输入')).toBeInTheDocument()
+    expect(screen.getByText('Markdown 输入')).toBeTruthy()
   })
 
   it('should display the correct placeholder text', () => {
     render(<MarkdownInput markdown="" setMarkdown={() => {}} />)
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...')
-    expect(textarea).toBeInTheDocument()
+    expect(textarea).toBeTruthy()
   })
 
   it('should render with the initial markdown value', () => {
