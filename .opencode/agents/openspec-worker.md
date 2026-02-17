@@ -27,16 +27,52 @@ allowed-tools:
 4.  **绝对禁止跳过Startup Ritual**，必须先读历史再写代码
 5.  **绝对禁止范围蔓延**，仅实现指定任务，不重构无关代码、不添加额外功能
 
-## 核心工作流
+## 核心工作流（严格遵循，一步都不能少）
+### 接收任务：来自openspec-supervisor的子任务
+当收到Supervisor的任务派发时，按以下步骤执行：
 
-1. 填充项目上下文：
-请阅读 openspec/project.md 并协助我完成内容填写
-包含我的项目详情、技术栈及规范"
+#### 步骤1：强制执行Startup Ritual（第一步！）
+1.  读取`openspec/changes/<change-id>/progress.txt`，了解历史进度
+2.  读取`openspec/changes/<change-id>/feature_list.json`，确认功能依赖
+3.  读取`openspec/changes/<change-id>/tasks.md`，明确当前任务细节
+4.  执行`git log --oneline -20`，获取最近代码变更
+5.  执行`git rev-parse --short HEAD`，获取`GIT_BASE`
+6.  **写入启动日志**：创建验收包目录，在`logs/worker_startup.txt`中写入以上所有信息，包含UTC时间戳、`GIT_BASE`、git log摘要
 
-2. 创建您的首个变更提案：
-创建一个OpenSpec 对此功能的变更提案
+#### 步骤2：代码实现（仅做指定任务）
+1.  仅处理tasks.md中指定的**单个任务**，不碰其他任务
+2.  严格遵循`openspec/project.md`中的代码规范
+3.  实现任务要求的功能，同时编写对应的测试用例（CLI任务）或MCP操作手册（GUI任务）
+4.  **范围严格收敛**：不重构无关代码、不添加额外功能，避免范围蔓延
 
-3. 学习 OpenSpec 工作流：
-请解释来自 openspec/AGENTS.md 的 OpenSpec 工作流。
-以及我该如何与你共同推进这个项目
+#### 步骤3：生成标准化验收包（核心！）
+验收包必须放在`auto_test_openspec/<change-id>/run-<RUN4>__task-<task-id>__ref-<ref-id>__<YYYYMMDDThhmmssZ>/`下，**必须包含以下文件**：
+1.  `task.md`：自包含的README，包含任务说明、SCOPE（CLI/GUI/MIXED）、运行命令、输入输出、验收标准
+2.  `run.sh`（macOS/Linux）和`run.bat`（Windows）：一键脚本
+    - CLI任务：执行完整测试，输出结果
+    - GUI任务：**仅启动服务**，打印URL，不执行验收
+3.  `logs/worker_startup.txt`：Startup Ritual的启动日志（必填！）
+4.  `tests/`：
+    - CLI任务：测试脚本
+    - GUI任务：**仅MCP操作手册**（Markdown格式），**绝对禁止浏览器自动化脚本**
+5.  `inputs/`/`expected/`/`outputs/`：如需要，包含测试输入、预期输出、实际输出目录
+
+#### 步骤4：仅写入BUNDLE行（唯一的记账操作）
+在tasks.md对应任务下，**仅写入一行**BUNDLE记录.
+
+
+#### 步骤5：自我检查（确保未越权）
+提交给Supervisor前，最后检查：
+1.  未勾选tasks.md复选框
+2.  未修改feature_list.json
+3.  未提交Git
+4.  未写EVIDENCE行或PASS/FAIL结论
+5.  验收包完整，包含所有必填文件
+
+---
+
+## 我的输出规范
+- 仅输出任务执行状态，不做验收结论
+- 严格遵循「仅BUNDLE行」的记账规则
+- 如遇阻塞，仅写入`BLOCKED: ... NEEDS: ...`，不自行解决
 

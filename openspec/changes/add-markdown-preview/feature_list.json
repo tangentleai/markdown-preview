@@ -1,0 +1,181 @@
+{
+  "change_id": "add-markdown-preview",
+  "generated_at": "2026-02-18T10:30:00Z",
+  "features": {
+    "R1": {
+      "category": "functional",
+      "description": "创建 React + TypeScript + Vite 项目基础结构",
+      "task_id": "1.1",
+      "accept": "项目结构包含 src/、public/、package.json 等基础文件，配置了 TypeScript 和 Vite",
+      "test": "SCOPE: CLI\n    - 运行 npm install 安装依赖\n    - 运行 npm run build 验证项目能正常构建\n    - 验证 dist/ 目录是否包含正确的构建产物",
+      "steps": [
+        "Run: npm install",
+        "Run: npm run build",
+        "Verify dist/ directory contains correct build artifacts"
+      ],
+      "passes": false
+    },
+    "R2": {
+      "category": "functional",
+      "description": "安装并配置 ReactMarkdown 和相关插件",
+      "task_id": "2.1",
+      "accept": "安装 react-markdown、remark-gfm、remark-math、rehype-highlight、katex 等依赖，配置完成",
+      "test": "SCOPE: CLI\n    - 检查 package.json 中是否包含所需依赖\n    - 检查 vite.config.ts 是否配置正确",
+      "steps": [
+        "Check package.json contains required dependencies",
+        "Check vite.config.ts is configured correctly"
+      ],
+      "passes": false
+    },
+    "R3": {
+      "category": "functional",
+      "description": "开发 MarkdownInput 组件",
+      "task_id": "2.2",
+      "accept": "组件提供 Markdown 文本输入功能，支持自动调整高度，有良好的用户体验",
+      "test": "SCOPE: GUI\n    - 启动开发服务器\n    - 在输入框中输入 Markdown 文本\n    - 验证输入框能正常接受输入和显示",
+      "steps": [
+        "Start development server",
+        "Input Markdown text in the input box",
+        "Verify the input box accepts and displays input correctly"
+      ],
+      "passes": false
+    },
+    "R4": {
+      "category": "functional",
+      "description": "开发 MarkdownPreview 组件",
+      "task_id": "2.3",
+      "accept": "组件支持 Markdown 文本实时预览，渲染结果美观",
+      "test": "SCOPE: GUI\n    - 输入 Markdown 文本，验证预览区域实时更新\n    - 测试标题、列表、链接、代码块等基本语法的渲染",
+      "steps": [
+        "Input Markdown text, verify preview updates in real-time",
+        "Test rendering of headings, lists, links, code blocks, etc."
+      ],
+      "passes": false
+    },
+    "R5": {
+      "category": "functional",
+      "description": "实现 GitHub Flavored Markdown (GFM) 支持",
+      "task_id": "2.4",
+      "accept": "支持表格、任务列表、代码块高亮等 GFM 语法",
+      "test": "SCOPE: GUI\n    - 输入包含表格和任务列表的 Markdown 文本\n    - 验证渲染结果是否符合 GFM 规范",
+      "steps": [
+        "Input Markdown text with tables and task lists",
+        "Verify rendering matches GFM specification"
+      ],
+      "passes": false
+    },
+    "R6": {
+      "category": "functional",
+      "description": "实现代码高亮功能",
+      "task_id": "2.5",
+      "accept": "代码块支持语法高亮，支持多种编程语言",
+      "test": "SCOPE: GUI\n    - 输入包含代码块的 Markdown 文本\n    - 验证代码块是否有语法高亮",
+      "steps": [
+        "Input Markdown text with code blocks",
+        "Verify syntax highlighting is applied"
+      ],
+      "passes": false
+    },
+    "R7": {
+      "category": "functional",
+      "description": "支持数学公式渲染",
+      "task_id": "2.6",
+      "accept": "支持 LaTeX 数学公式渲染，包括行内公式和块级公式",
+      "test": "SCOPE: GUI\n    - 输入包含数学公式的 Markdown 文本\n    - 验证公式是否正确渲染",
+      "steps": [
+        "Input Markdown text with mathematical formulas",
+        "Verify formulas render correctly"
+      ],
+      "passes": false
+    },
+    "R8": {
+      "category": "functional",
+      "description": "设计主界面布局",
+      "task_id": "3.1",
+      "accept": "界面包含 Markdown 输入区域和预览区域，布局清晰美观",
+      "test": "SCOPE: GUI\n    - 启动开发服务器\n    - 验证界面布局是否符合设计\n    - 检查输入区域和预览区域的比例是否合适",
+      "steps": [
+        "Start development server",
+        "Verify interface layout matches design",
+        "Check input and preview area proportions"
+      ],
+      "passes": false
+    },
+    "R9": {
+      "category": "functional",
+      "description": "实现响应式设计",
+      "task_id": "3.2",
+      "accept": "界面在不同屏幕尺寸下都能正常显示",
+      "test": "SCOPE: GUI\n    - 在不同设备尺寸上测试应用\n    - 验证布局是否自适应\n    - 检查在移动设备上的显示效果",
+      "steps": [
+        "Test application on different device sizes",
+        "Verify layout is responsive",
+        "Check display on mobile devices"
+      ],
+      "passes": false
+    },
+    "R10": {
+      "category": "functional",
+      "description": "添加基础样式和主题",
+      "task_id": "3.3",
+      "accept": "应用有统一的视觉风格，使用 Tailwind CSS 实现",
+      "test": "SCOPE: GUI\n    - 检查应用的颜色、字体、间距是否符合设计规范\n    - 验证界面元素的响应式行为",
+      "steps": [
+        "Check application colors, fonts, and spacing",
+        "Verify responsive behavior of interface elements"
+      ],
+      "passes": false
+    },
+    "R11": {
+      "category": "functional",
+      "description": "配置 Tailwind CSS 样式框架",
+      "task_id": "4.1",
+      "accept": "项目使用 Tailwind CSS 进行样式开发，配置完成",
+      "test": "SCOPE: CLI\n    - 检查 tailwind.config.js 和 postcss.config.js 是否配置正确\n    - 检查 src/index.css 是否包含 Tailwind 指令",
+      "steps": [
+        "Check tailwind.config.js and postcss.config.js",
+        "Verify src/index.css contains Tailwind directives"
+      ],
+      "passes": false
+    },
+    "R12": {
+      "category": "functional",
+      "description": "优化构建配置",
+      "task_id": "4.2",
+      "accept": "构建产物符合要求，优化了打包体积和加载速度",
+      "test": "SCOPE: CLI\n    - 运行 npm run build\n    - 验证构建产物目录结构和文件大小\n    - 检查是否有未使用的依赖和代码",
+      "steps": [
+        "Run: npm run build",
+        "Verify build artifacts directory structure and file sizes",
+        "Check for unused dependencies and code"
+      ],
+      "passes": false
+    },
+    "R13": {
+      "category": "testing",
+      "description": "编写单元测试",
+      "task_id": "5.1",
+      "accept": "关键组件和功能有对应的单元测试，测试覆盖率达到 80% 以上",
+      "test": "SCOPE: CLI\n    - 运行 npm run test\n    - 验证测试是否通过\n    - 检查测试覆盖率报告",
+      "steps": [
+        "Run: npm run test",
+        "Verify tests pass",
+        "Check test coverage report"
+      ],
+      "passes": false
+    },
+    "R14": {
+      "category": "testing",
+      "description": "集成测试",
+      "task_id": "5.2",
+      "accept": "应用能正常启动和运行，所有功能正常",
+      "test": "SCOPE: GUI\n    - 启动开发服务器\n    - 验证应用功能是否正常\n    - 测试所有交互流程是否顺畅",
+      "steps": [
+        "Start development server",
+        "Verify application features are working",
+        "Test all interactive flows"
+      ],
+      "passes": false
+    }
+  }
+}

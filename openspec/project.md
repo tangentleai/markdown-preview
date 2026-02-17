@@ -1,34 +1,58 @@
 # Project Context
 
 ## Purpose
-[Describe your project's purpose and goals]
+Markdown Preview 是一个轻量级的 Markdown 文本预览工具，旨在提供快速、简单且美观的 Markdown 文件预览功能。用户可以通过该工具实时查看 Markdown 文档的渲染效果，支持常见的 Markdown 语法和扩展功能。
 
 ## Tech Stack
-- [List your primary technologies]
-- [e.g., TypeScript, React, Node.js]
+- **前端框架**: React
+- **语言**: TypeScript
+- **构建工具**: Vite
+- **Markdown 解析**: ReactMarkdown + remark 插件
+- **样式**: Tailwind CSS
+- **开发服务器**: Vite Dev Server
 
 ## Project Conventions
 
 ### Code Style
-[Describe your code style preferences, formatting rules, and naming conventions]
+- 使用 TypeScript 严格类型检查
+- 代码格式化使用 Prettier
+- 遵循 ESLint 规则
+- 组件命名使用 PascalCase
+- 文件命名使用 kebab-case
 
 ### Architecture Patterns
-[Document your architectural decisions and patterns]
+- 组件化架构，每个功能模块独立封装
+- 状态管理使用 React Hooks
+- 数据流向采用单向数据流
+- 工具函数和钩子函数分离到单独文件
 
 ### Testing Strategy
-[Explain your testing approach and requirements]
+- 使用 Vitest 进行单元测试
+- React 组件测试使用 @testing-library/react
+- 测试覆盖率目标: 80%+
+- 测试文件与源代码文件同名，后缀为 .test.tsx
 
 ### Git Workflow
-[Describe your branching strategy and commit conventions]
+- 主分支: main
+- 开发分支: feature/xxx
+- 提交规范: 类型: 描述 (例如: feat: 添加实时预览功能)
+- Pull Request 需要至少一位审核者批准
 
 ## Domain Context
-[Add domain-specific knowledge that AI assistants need to understand]
+Markdown 是一种轻量级标记语言，使用易读易写的纯文本格式编写文档。该项目主要关注 Markdown 文档的实时预览功能，支持常用的 Markdown 语法，包括标题、列表、链接、代码块等。
 
 ## Important Constraints
-[List any technical, business, or regulatory constraints]
+- 保持轻量级，避免过度设计
+- 优先考虑性能和用户体验
+- 支持主流浏览器 (Chrome, Firefox, Safari, Edge)
+- 保持代码简洁和可维护性
 
 ## External Dependencies
-[Document key external services, APIs, or systems]
+- **ReactMarkdown**: Markdown 解析和渲染
+- **remark-gfm**: 支持 GitHub Flavored Markdown
+- **remark-math**: 支持数学公式
+- **rehype-highlight**: 代码高亮
+- **Tailwind CSS**: 样式框架
 
 ## tasks.md Checklist Format
 
