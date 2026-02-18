@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/__tests__/app.test.tsx","./src/__tests__/markdowninput.test.tsx","./src/__tests__/markdownpreview.test.tsx","./src/components/markdowninput.tsx","./src/components/markdownpreview.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/__tests__/app.test.tsx","./src/__tests__/markdowninput.test.tsx","./src/__tests__/markdownpreview.test.tsx","./src/components/markdowninput.tsx","./src/components/markdownpreview.tsx","./src/types/remark-mermaid.d.ts","./src/types/remark-plantuml.d.ts"],"version":"5.9.3"}

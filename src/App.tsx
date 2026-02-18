@@ -3,7 +3,73 @@ import MarkdownInput from './components/MarkdownInput'
 import MarkdownPreview from './components/MarkdownPreview'
 
 function App() {
-  const [markdown, setMarkdown] = useState<string>('# Markdown Preview\n\n这是一个简单的 Markdown 预览工具。\n\n## 功能特性\n\n- 实时预览 Markdown 文本\n- 支持 GitHub Flavored Markdown (GFM)\n- 代码高亮\n- 数学公式渲染\n- 响应式设计\n\n## 使用方法\n\n在左侧输入框中输入 Markdown 文本，右侧会实时显示预览结果。\n\n## 示例代码\n\n```typescript\nfunction greet(name: string) {\n  return `Hello, ${name}!`;\n}\n\nconsole.log(greet("World"));\n```\n\n## 数学公式\n\n行内公式：$E = mc^2$\n\n块级公式：\n\n$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n\n## 表格\n\n| 功能 | 描述 | 状态 |\n| --- | --- | --- |\n| 基础语法 | 支持标题、列表、链接等 | ✅ |\n| GFM | 支持表格、任务列表 | ✅ |\n| 代码高亮 | 支持多种编程语言 | ✅ |\n| 数学公式 | 支持 LaTeX 公式 | ✅ |')
+  const [markdown, setMarkdown] = useState<string>(`# Markdown Preview
+
+这是一个简单的 Markdown 预览工具。
+
+## 功能特性
+
+- 实时预览 Markdown 文本
+- 支持 GitHub Flavored Markdown (GFM)
+- 代码高亮
+- 数学公式渲染
+- 响应式设计
+- 图表渲染（Mermaid 和 PlantUML）
+
+## 使用方法
+
+在左侧输入框中输入 Markdown 文本，右侧会实时显示预览结果。
+
+## 示例代码
+
+\`\`\`typescript
+function greet(name: string) {
+  return "Hello, " + name + "!";
+}
+
+console.log(greet("World"));
+\`\`\`
+
+## 数学公式
+
+行内公式：$E = mc^2$
+
+块级公式：
+
+$$
+\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}
+$$
+
+## 表格
+
+| 功能 | 描述 | 状态 |
+| --- | --- | --- |
+| 基础语法 | 支持标题、列表、链接等 | ✅ |
+| GFM | 支持表格、任务列表 | ✅ |
+| 代码高亮 | 支持多种编程语言 | ✅ |
+| 数学公式 | 支持 LaTeX 公式 | ✅ |
+| 图表渲染 | 支持 Mermaid 和 PlantUML 图表 | ✅ |
+
+## Mermaid 图表示例
+
+\`\`\`mermaid
+graph TD
+    A[开始] --> B{条件判断}
+    B -->|是| C[执行操作1]
+    B -->|否| D[执行操作2]
+    C --> E[结束]
+    D --> E
+\`\`\`
+
+## PlantUML 图表示例
+
+\`\`\`plantuml
+@startuml
+Bob -> Alice : 问候
+Alice -> Bob : 回复
+@enduml
+\`\`\`
+`)
 
   return (
     <div className="min-h-screen bg-gray-100">
