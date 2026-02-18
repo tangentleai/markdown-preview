@@ -11,7 +11,7 @@ const config = {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(ccount|trough|react-markdown|remark-|rehype-|unist-|mdast-|hast-|micromark|decode-named-character-reference|character-entities|zwitch|longest-streak|lowlight|parse-entities|katex|devlop|comma-separated-tokens|estree-util-is-identifier-name|space-separated-tokens|vfile|vfile-message|html-url-attributes|property-information|bail|is-plain-obj|unified|trim-lines|escape-string-regexp|markdown-table|mdast-util-find-and-replace|trough|mermaid|d3-|dagre-d3-|lodash-es))'
+    '/node_modules/(?!(ccount|trough|react-markdown|remark-|rehype-|unist-|mdast-|hast-|micromark|decode-named-character-reference|character-entities|zwitch|longest-streak|lowlight|parse-entities|katex|devlop|comma-separated-tokens|estree-util-is-identifier-name|space-separated-tokens|vfile|vfile-message|html-url-attributes|property-information|bail|is-plain-obj|unified|trim-lines|escape-string-regexp|markdown-table|mdast-util-find-and-replace|trough|mermaid|d3-|dagre-d3-|lodash-es|plantuml-encoder))'
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   testPathIgnorePatterns: ['node_modules'],
