@@ -1,61 +1,9 @@
 import React, { useEffect, useRef } from 'react'
+import { markdownToEditableHtml } from '../utils/markdownDocumentModel'
 
 interface WysiwygEditorProps {
   markdown: string
   setMarkdown: (value: string) => void
-}
-
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-
-const markdownInlineToHtml = (value: string): string => {
-  const escaped = escapeHtml(value)
-
-  return escaped
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-}
-
-const markdownToEditableHtml = (markdown: string): string => {
-  const blocks = markdown
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-
-  if (blocks.length === 0) {
-    return '<p><br /></p>'
-  }
-
-  return blocks
-    .map((block) => {
-      const headingMatch = block.match(/^(#{1,6})\s+(.+)$/)
-      if (headingMatch) {
-        const level = headingMatch[1].length
-        return `<h${level}>${markdownInlineToHtml(headingMatch[2])}</h${level}>`
-      }
-
-      if (/^```[\s\S]*```$/.test(block)) {
-        const code = block.replace(/^```\w*\n?/, '').replace(/```$/, '').trimEnd()
-        return `<pre><code>${escapeHtml(code)}</code></pre>`
-      }
-
-      const lines = block.split('\n').map((line) => line.trim())
-
-      if (lines.every((line) => line.startsWith('- '))) {
-        const items = lines
-          .map((line) => `<li>${markdownInlineToHtml(line.slice(2))}</li>`)
-          .join('')
-        return `<ul>${items}</ul>`
-      }
-
-      return `<p>${lines.map(markdownInlineToHtml).join('<br />')}</p>`
-    })
-    .join('')
 }
 
 const nodeToMarkdown = (node: ChildNode): string => {

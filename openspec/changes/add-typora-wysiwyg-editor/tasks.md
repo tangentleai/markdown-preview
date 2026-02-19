@@ -13,10 +13,12 @@
   - BUNDLE (RUN #2): Task 1.1 native contentEditable kernel MVP bundle (GUI start-server-only) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #2): Supervisor executed GUI MCP runbook and confirmed single-pane editable WYSIWYG behavior with mode round-trip sync | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/run.sh (retry log confirms Local URL http://127.0.0.1:33100/); MCP playwright assertions for input/delete/replace in WYSIWYG editor and sync back to dual-pane textarea | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/outputs/screenshots/01-wysiwyg-before-edit.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/outputs/screenshots/02-wysiwyg-after-edit.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/outputs/screenshots/03-dual-pane-after-switch-back.png
 
-- [ ] 1.2 建立 Markdown 导入到文档模型的解析流程 [#R2]
+- [x] 1.2 建立 Markdown 导入到文档模型的解析流程 [#R2]
   - ACCEPT: 支持段落、标题、列表、引用、代码块、链接、图片、表格基础导入
   - TEST: SCOPE: CLI
     - 运行解析测试集，校验节点结构与预期快照一致
+  - BUNDLE (RUN #3): Task 1.2 markdown import parser bundle (CLI snapshot checks) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #3): Supervisor executed CLI validation bundle and verified markdown import parser test suite output | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z/run.sh (exit=0) | RESULT: PASS | CLI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z/logs/supervisor_run.log, auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z/outputs/test-output.txt
 
 - [ ] 1.3 建立文档模型导出 Markdown 的序列化流程 [#R3]
   - ACCEPT: 导出结果为 UTF-8 Markdown，结构语义与编辑状态一致

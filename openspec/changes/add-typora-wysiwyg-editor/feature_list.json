@@ -36,7 +36,7 @@
         "Run: SCOPE: CLI",
         "Run: - 运行解析测试集，校验节点结构与预期快照一致"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",

@@ -1,0 +1,19 @@
+[TEST] markdown import parser suite
+[TEST] repo_dir=/Users/tlh/Code/markdown-preview
+
+> markdown-preview@0.0.0 test
+> jest markdownDocumentModel
+
+(node:71544) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/markdownDocumentModel.test.ts
+  markdown import parser
+    ✓ should parse required markdown nodes into document model snapshot (3 ms)
+    ✓ should keep existing heading list code and paragraph import behavior (1 ms)
+    ✓ should render quote table image and link from imported model
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   1 passed, 1 total
+Time:        1.641 s
+Ran all test suites matching /markdownDocumentModel/i.

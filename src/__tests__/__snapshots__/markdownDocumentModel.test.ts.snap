@@ -1,0 +1,142 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`markdown import parser should parse required markdown nodes into document model snapshot 1`] = `
+{
+  "blocks": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "标题",
+        },
+      ],
+      "level": 1,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "段落包含 ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "链接",
+            },
+          ],
+          "href": "https://example.com",
+          "type": "link",
+        },
+        {
+          "type": "text",
+          "value": " 与 ",
+        },
+        {
+          "alt": "图标",
+          "src": "./icon.png",
+          "type": "image",
+        },
+        {
+          "type": "text",
+          "value": "。",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "items": [
+        [
+          {
+            "type": "text",
+            "value": "列表项一",
+          },
+        ],
+        [
+          {
+            "type": "text",
+            "value": "列表项二",
+          },
+        ],
+      ],
+      "ordered": false,
+      "type": "list",
+    },
+    {
+      "blocks": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "引用第一行
+引用第二行",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "type": "quote",
+    },
+    {
+      "code": "const value = 1",
+      "language": "ts",
+      "type": "codeBlock",
+    },
+    {
+      "header": [
+        [
+          {
+            "type": "text",
+            "value": "列1",
+          },
+        ],
+        [
+          {
+            "type": "text",
+            "value": "列2",
+          },
+        ],
+      ],
+      "rows": [
+        [
+          [
+            {
+              "type": "text",
+              "value": "文本",
+            },
+          ],
+          [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "文档",
+                },
+              ],
+              "href": "https://docs.example.com",
+              "type": "link",
+            },
+          ],
+        ],
+        [
+          [
+            {
+              "type": "text",
+              "value": "图片",
+            },
+          ],
+          [
+            {
+              "alt": "示例",
+              "src": "./table.png",
+              "type": "image",
+            },
+          ],
+        ],
+      ],
+      "type": "table",
+    },
+  ],
+}
+`;
