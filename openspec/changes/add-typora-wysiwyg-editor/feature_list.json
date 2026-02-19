@@ -96,7 +96,7 @@
         "Run: SCOPE: MIXED",
         "Run: - CLI 校验事务边界；GUI 校验中文输入与快捷键撤销/重做"
       ],
-      "passes": false
+      "passes": true
     },
     "R8": {
       "category": "functional",

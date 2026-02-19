@@ -1,6 +1,7 @@
 import {
   BlockInputRuleUndoStack,
   canTriggerBlockInputRule,
+  isImeComposingEvent,
   type BlockInputRuleTransaction
 } from '../utils/wysiwygBlockInputRules'
 
@@ -23,7 +24,7 @@ describe('wysiwyg block input rules transaction log', () => {
     )
   })
 
-  it('should support one-step undo by restoring pre-transform markdown from transaction stack', () => {
+  it('should support undo and redo stacks for structural transactions', () => {
     const stack = new BlockInputRuleUndoStack()
     const transaction: BlockInputRuleTransaction = {
       rule: 'heading-1',
@@ -38,9 +39,23 @@ describe('wysiwyg block input rules transaction log', () => {
 
     stack.push(transaction)
     expect(stack.size()).toBe(1)
+    expect(stack.redoSize()).toBe(0)
 
-    const undone = stack.pop()
+    const undone = stack.undo()
     expect(undone?.beforeMarkdown).toBe('#\n')
     expect(stack.size()).toBe(0)
+    expect(stack.redoSize()).toBe(1)
+
+    const redone = stack.redo()
+    expect(redone?.afterMarkdown).toBe('')
+    expect(stack.size()).toBe(1)
+    expect(stack.redoSize()).toBe(0)
+  })
+
+  it('should detect IME composition by session state or keyCode 229', () => {
+    expect(isImeComposingEvent({ isComposing: false, keyCode: 32 }, true)).toBe(true)
+    expect(isImeComposingEvent({ isComposing: true, keyCode: 32 }, false)).toBe(true)
+    expect(isImeComposingEvent({ isComposing: false, keyCode: 229 }, false)).toBe(true)
+    expect(isImeComposingEvent({ isComposing: false, keyCode: 32 }, false)).toBe(false)
   })
 })

@@ -3,6 +3,7 @@ import { markdownToEditableHtml } from '../utils/markdownDocumentModel'
 import {
   BlockInputRuleUndoStack,
   canTriggerBlockInputRule,
+  isImeComposingEvent,
   type BlockInputRuleMatch,
   type BlockInputRuleTransaction
 } from '../utils/wysiwygBlockInputRules'
@@ -292,7 +293,8 @@ const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch):
 const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) => {
   const editorRef = useRef<HTMLDivElement>(null)
   const lastSyncedMarkdownRef = useRef<string>('')
-  const blockRuleUndoRef = useRef(new BlockInputRuleUndoStack())
+  const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
+  const isImeComposingRef = useRef(false)
 
   useEffect(() => {
     if (!editorRef.current) {
@@ -320,34 +322,64 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
     }
   }
 
+  const applyTransactionSnapshot = (
+    transaction: BlockInputRuleTransaction,
+    direction: 'undo' | 'redo'
+  ) => {
+    if (!editorRef.current) {
+      return
+    }
+
+    const snapshotMarkdown = direction === 'undo' ? transaction.beforeMarkdown : transaction.afterMarkdown
+    const snapshotHtml = direction === 'undo' ? transaction.beforeHtml : transaction.afterHtml
+    editorRef.current.innerHTML = snapshotHtml ?? markdownToEditableHtml(snapshotMarkdown)
+    const restoreTarget =
+      (editorRef.current.firstElementChild as HTMLElement | null) ??
+      editorRef.current.appendChild(document.createElement('p'))
+    if (direction === 'undo' && !restoreTarget.firstChild && transaction.triggerText) {
+      restoreTarget.append(document.createTextNode(transaction.triggerText))
+    }
+    setCaretToStart(restoreTarget)
+
+    lastSyncedMarkdownRef.current = snapshotMarkdown
+    setMarkdown(snapshotMarkdown)
+  }
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!editorRef.current) {
       return
     }
 
+    const imeComposingNow = isImeComposingEvent(event.nativeEvent, isImeComposingRef.current)
+
     if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
-      const transaction = blockRuleUndoRef.current.pop()
+      const transaction = structuralHistoryRef.current.undo()
 
       if (!transaction) {
         return
       }
 
       event.preventDefault()
-      editorRef.current.innerHTML = markdownToEditableHtml(transaction.beforeMarkdown)
-      const restoreTarget =
-        (editorRef.current.firstElementChild as HTMLElement | null) ??
-        editorRef.current.appendChild(document.createElement('p'))
-      if (!restoreTarget.firstChild) {
-        restoreTarget.append(document.createTextNode(transaction.triggerText))
-      }
-      setCaretToStart(restoreTarget)
-
-      lastSyncedMarkdownRef.current = transaction.beforeMarkdown
-      setMarkdown(transaction.beforeMarkdown)
+      applyTransactionSnapshot(transaction, 'undo')
       return
     }
 
-    if (!event.nativeEvent.isComposing && (event.key === 'Enter' || event.key === 'Backspace')) {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      ((event.shiftKey && event.key.toLowerCase() === 'z') || (!event.shiftKey && event.key.toLowerCase() === 'y'))
+    ) {
+      const transaction = structuralHistoryRef.current.redo()
+
+      if (!transaction) {
+        return
+      }
+
+      event.preventDefault()
+      applyTransactionSnapshot(transaction, 'redo')
+      return
+    }
+
+    if (!imeComposingNow && (event.key === 'Enter' || event.key === 'Backspace')) {
       const selection = window.getSelection()
       if (selection && selection.isCollapsed && selection.rangeCount > 0) {
         const block = getClosestBlockElement(selection.anchorNode, editorRef.current)
@@ -357,11 +389,26 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
           const isCaretAtStart = caretOffset === 0
 
           if (event.key === 'Backspace' && block.tagName.match(/^H[1-6]$/) && isCaretAtStart) {
+            const beforeMarkdown = htmlToMarkdown(editorRef.current)
+            const beforeHtml = editorRef.current.innerHTML
             event.preventDefault()
             const paragraph = replaceBlockWithParagraph(block)
             setCaretToStart(paragraph)
 
             const nextMarkdown = htmlToMarkdown(editorRef.current)
+            const afterHtml = editorRef.current.innerHTML
+            structuralHistoryRef.current.push({
+              rule: 'heading-to-paragraph',
+              triggerText: '',
+              triggerKey: 'Backspace',
+              beforeMarkdown,
+              afterMarkdown: nextMarkdown,
+              beforeHtml,
+              afterHtml,
+              beforeCursorOffset: 0,
+              afterCursorOffset: 0,
+              createdAt: new Date().toISOString()
+            })
             lastSyncedMarkdownRef.current = nextMarkdown
             if (nextMarkdown !== markdown) {
               setMarkdown(nextMarkdown)
@@ -371,11 +418,26 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
 
           if (event.key === 'Enter' && isBlockTextEmpty(block)) {
             if (block.tagName === 'LI') {
+              const beforeMarkdown = htmlToMarkdown(editorRef.current)
+              const beforeHtml = editorRef.current.innerHTML
               event.preventDefault()
               const paragraph = exitEmptyListItem(block)
               setCaretToStart(paragraph)
 
               const nextMarkdown = htmlToMarkdown(editorRef.current)
+              const afterHtml = editorRef.current.innerHTML
+              structuralHistoryRef.current.push({
+                rule: 'exit-empty-list-item',
+                triggerText: '',
+                triggerKey: 'Enter',
+                beforeMarkdown,
+                afterMarkdown: nextMarkdown,
+                beforeHtml,
+                afterHtml,
+                beforeCursorOffset: 0,
+                afterCursorOffset: 0,
+                createdAt: new Date().toISOString()
+              })
               lastSyncedMarkdownRef.current = nextMarkdown
               if (nextMarkdown !== markdown) {
                 setMarkdown(nextMarkdown)
@@ -384,11 +446,26 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
             }
 
             if (block.closest('blockquote')) {
+              const beforeMarkdown = htmlToMarkdown(editorRef.current)
+              const beforeHtml = editorRef.current.innerHTML
               event.preventDefault()
               const paragraph = exitEmptyBlockquote(block)
               setCaretToStart(paragraph)
 
               const nextMarkdown = htmlToMarkdown(editorRef.current)
+              const afterHtml = editorRef.current.innerHTML
+              structuralHistoryRef.current.push({
+                rule: 'exit-empty-blockquote',
+                triggerText: '',
+                triggerKey: 'Enter',
+                beforeMarkdown,
+                afterMarkdown: nextMarkdown,
+                beforeHtml,
+                afterHtml,
+                beforeCursorOffset: 0,
+                afterCursorOffset: 0,
+                createdAt: new Date().toISOString()
+              })
               lastSyncedMarkdownRef.current = nextMarkdown
               if (nextMarkdown !== markdown) {
                 setMarkdown(nextMarkdown)
@@ -400,7 +477,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
       }
     }
 
-    if (!event.nativeEvent.isComposing && ['*', '`', ')'].includes(event.key)) {
+    if (!imeComposingNow && ['*', '`', ')'].includes(event.key)) {
       const selection = window.getSelection()
       if (selection && selection.isCollapsed && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0)
@@ -446,7 +523,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
       }
     }
 
-    if (event.nativeEvent.isComposing || (![' ', 'Enter'].includes(event.key) && event.key !== 'Spacebar')) {
+    if (imeComposingNow || (![' ', 'Enter'].includes(event.key) && event.key !== 'Spacebar')) {
       return
     }
 
@@ -478,9 +555,11 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
     event.preventDefault()
 
     const beforeMarkdown = htmlToMarkdown(editorRef.current)
+    const beforeHtml = editorRef.current.innerHTML
     const transformedEditableTarget = replaceBlockByRule(block, match)
     setCaretToStart(transformedEditableTarget)
     const afterMarkdown = htmlToMarkdown(editorRef.current)
+    const afterHtml = editorRef.current.innerHTML
 
     const transaction: BlockInputRuleTransaction = {
       rule: match.rule,
@@ -488,12 +567,14 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
       triggerKey: match.triggerKey,
       beforeMarkdown,
       afterMarkdown,
+      beforeHtml,
+      afterHtml,
       beforeCursorOffset: rawLineText.length,
       afterCursorOffset: 0,
       createdAt: new Date().toISOString()
     }
 
-    blockRuleUndoRef.current.push(transaction)
+    structuralHistoryRef.current.push(transaction)
     lastSyncedMarkdownRef.current = afterMarkdown
     setMarkdown(afterMarkdown)
   }
@@ -508,6 +589,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onCompositionStart={() => {
+          isImeComposingRef.current = true
+        }}
+        onCompositionEnd={() => {
+          isImeComposingRef.current = false
+        }}
         className="markdown-preview min-h-[600px] max-h-[600px] overflow-auto rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label="WYSIWYG 编辑区"
         role="textbox"

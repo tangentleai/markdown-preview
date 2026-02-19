@@ -103,6 +103,25 @@ describe('App component', () => {
     expect(selection?.anchorNode && transformed?.contains(selection.anchorNode)).toBeTruthy()
   })
 
+  it('should not trigger block transform when Chinese IME composition is active', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>#</p>'
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+
+    fireEvent.compositionStart(editor)
+    fireEvent.keyDown(editor, { key: ' ', keyCode: 229 })
+
+    expect(editor.querySelector('h1')).toBeNull()
+    expect(editor.querySelector('p')?.textContent).toBe('#')
+
+    fireEvent.compositionEnd(editor)
+  })
+
   it('should undo one block transform back to pre-transform text state', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
@@ -119,6 +138,25 @@ describe('App component', () => {
     fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
 
     expect(editor.querySelector('p')?.textContent).toBe('#')
+  })
+
+  it('should redo structural block transform after undo with shortcut', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>#</p>'
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+    fireEvent.keyDown(editor, { key: ' ' })
+    expect(editor.querySelector('h1')).toBeTruthy()
+
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
+    expect(editor.querySelector('p')?.textContent).toBe('#')
+
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true, shiftKey: true })
+    expect(editor.querySelector('h1')).toBeTruthy()
   })
 
   it.each([
@@ -206,6 +244,26 @@ describe('App component', () => {
     fireEvent.keyDown(editor, { key: 'Backspace' })
 
     expect(editor.querySelector('h2')).toBeNull()
+    expect(editor.querySelector('p')?.textContent).toBe('标题文本')
+  })
+
+  it('should include heading backspace transaction in undo and redo history', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<h2>标题文本</h2>'
+
+    const heading = editor.querySelector('h2') as HTMLElement
+    setCaretAtStart(heading)
+    fireEvent.keyDown(editor, { key: 'Backspace' })
+    expect(editor.querySelector('h2')).toBeNull()
+    expect(editor.querySelector('p')?.textContent).toBe('标题文本')
+
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
+    expect(editor.querySelector('h2')?.textContent).toContain('标题文本')
+
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true, shiftKey: true })
     expect(editor.querySelector('p')?.textContent).toBe('标题文本')
   })
 })

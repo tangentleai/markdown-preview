@@ -4,6 +4,9 @@ export type BlockInputRuleName =
   | 'ordered-list'
   | 'blockquote'
   | 'code-block'
+  | 'heading-to-paragraph'
+  | 'exit-empty-list-item'
+  | 'exit-empty-blockquote'
 
 export interface BlockInputRuleMatch {
   rule: BlockInputRuleName
@@ -14,14 +17,27 @@ export interface BlockInputRuleMatch {
 
 export interface BlockInputRuleTransaction {
   rule: BlockInputRuleName
-  triggerText: BlockInputRuleMatch['triggerText']
-  triggerKey: BlockInputRuleMatch['triggerKey']
+  triggerText: string
+  triggerKey: string
   beforeMarkdown: string
   afterMarkdown: string
+  beforeHtml?: string
+  afterHtml?: string
   beforeCursorOffset: number
   afterCursorOffset: number
   createdAt: string
 }
+
+export interface ImeKeyboardEventLike {
+  isComposing?: boolean
+  keyCode?: number
+  which?: number
+}
+
+export const isImeComposingEvent = (
+  event: ImeKeyboardEventLike,
+  compositionSessionActive: boolean
+): boolean => compositionSessionActive || Boolean(event.isComposing) || event.keyCode === 229 || event.which === 229
 
 export const matchBlockInputRule = (
   lineText: string,
@@ -92,17 +108,39 @@ export const canTriggerBlockInputRule = (lineText: string, key: string): BlockIn
 }
 
 export class BlockInputRuleUndoStack {
-  private readonly stack: BlockInputRuleTransaction[] = []
+  private readonly undoStack: BlockInputRuleTransaction[] = []
+  private readonly redoStack: BlockInputRuleTransaction[] = []
 
   push(transaction: BlockInputRuleTransaction): void {
-    this.stack.push(transaction)
+    this.undoStack.push(transaction)
+    this.redoStack.length = 0
   }
 
   pop(): BlockInputRuleTransaction | null {
-    return this.stack.pop() ?? null
+    return this.undo()
+  }
+
+  undo(): BlockInputRuleTransaction | null {
+    const transaction = this.undoStack.pop() ?? null
+    if (transaction) {
+      this.redoStack.push(transaction)
+    }
+    return transaction
+  }
+
+  redo(): BlockInputRuleTransaction | null {
+    const transaction = this.redoStack.pop() ?? null
+    if (transaction) {
+      this.undoStack.push(transaction)
+    }
+    return transaction
   }
 
   size(): number {
-    return this.stack.length
+    return this.undoStack.length
+  }
+
+  redoSize(): number {
+    return this.redoStack.length
   }
 }

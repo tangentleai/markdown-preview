@@ -1,0 +1,4 @@
+
+> markdown-preview@0.0.0 test
+> jest --runInBand src/__tests__/wysiwygBlockInputRules.test.ts src/__tests__/App.test.tsx
+
