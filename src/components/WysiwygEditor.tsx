@@ -11,6 +11,7 @@ import { matchInlineStyleRule, type InlineStyleRuleMatch } from '../utils/wysiwy
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import mermaid from 'mermaid'
+import { encode as encodePlantUml } from 'plantuml-encoder'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -84,6 +85,10 @@ const nodeToMarkdown = (node: ChildNode): string => {
 
 const blockToMarkdown = (element: Element): string => {
   const tagName = element.tagName
+  const attr = (name: string) => (element as HTMLElement).getAttribute(name) ?? ''
+  if (attr('data-diagram-editor') === 'true') {
+    return ''
+  }
 
   if (tagName.match(/^H[1-6]$/)) {
     const level = Number.parseInt(tagName.slice(1), 10)
@@ -1176,6 +1181,124 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
     }
   }
+  const openDiagramEditorInline = (target: HTMLElement, lang: 'mermaid' | 'plantuml', code: string) => {
+    if (!editorRef.current) return
+    const host = editorRef.current
+    const existing = host.querySelector('[data-diagram-editor="true"]') as HTMLElement | null
+    if (existing) {
+      existing.remove()
+    }
+    const container = document.createElement('div')
+    container.setAttribute('data-diagram-editor', 'true')
+    container.className = 'rounded border border-gray-300 bg-white shadow-sm mb-2'
+    const header = document.createElement('div')
+    header.className = 'flex items-center justify-between px-2 py-1 border-b border-gray-200'
+    const title = document.createElement('span')
+    title.className = 'text-xs text-gray-700'
+    title.textContent = '图表源码编辑'
+    const status = document.createElement('span')
+    status.className = 'text-xs text-gray-500'
+    status.setAttribute('data-status', 'idle')
+    header.append(title, status)
+    const body = document.createElement('div')
+    body.className = 'p-2'
+    const textarea = document.createElement('textarea')
+    textarea.className =
+      'w-full min-h-80 max-h-[65vh] resize-y p-2 border border-gray-300 rounded font-mono text-sm leading-5 outline-none'
+    textarea.value = `\`\`\`${lang}\n${code.trim()}\n\`\`\``
+    textarea.setAttribute('aria-label', '图表源码编辑区')
+    body.append(textarea)
+    container.append(header, body)
+    target.parentElement?.insertBefore(container, target)
+    const validate = async (raw: string) => {
+      let ok = false
+      if (lang === 'mermaid') {
+      try {
+          await (mermaid as any).parse(raw)
+          ok = true
+        } catch {
+          ok = false
+        }
+      } else {
+        ok = /@startuml/.test(raw) && /@enduml/.test(raw)
+      }
+      status.textContent = ok ? '语法校验通过' : '语法错误'
+      status.className = ok ? 'text-xs text-emerald-600' : 'text-xs text-red-600'
+    }
+    const extract = (md: string): string => {
+      const fence = new RegExp('^```' + lang + '\\s*\\n([\\s\\S]*?)\\n```\\s*$', 'm')
+      const m = md.match(fence)
+      if (m) return m[1]
+      return md.replace(/```[a-zA-Z]*\s*\n?/g, '').replace(/```\s*$/g, '').trim()
+    }
+    textarea.addEventListener('input', () => {
+      const raw = extract(textarea.value)
+      void validate(raw)
+    })
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const raw = extract(textarea.value)
+        applyDiagramCode(target, lang, raw)
+        container.remove()
+        syncMarkdownFromEditor()
+      }
+    })
+  }
+  const applyDiagramCode = (target: HTMLElement, lang: 'mermaid' | 'plantuml', code: string) => {
+    if (lang === 'mermaid') {
+      target.setAttribute('data-raw', code)
+      target.textContent = code
+      try {
+        mermaid.run({
+          nodes: editorRef.current!.querySelectorAll('.mermaid') as unknown as NodeListOf<Element>
+        } as any)
+      } catch {}
+      return
+    }
+    const img = target.querySelector('img')
+    if (img) {
+      img.setAttribute('data-plantuml-code', code)
+      const encoded = encodePlantUml(code.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+/g, '\n'))
+      img.setAttribute('src', `https://www.plantuml.com/plantuml/svg/${encoded}`)
+    }
+  }
+
+
+  const handleEditorClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editorRef.current) return
+    const targetElement = event.target as HTMLElement
+    const inlineEditor = editorRef.current.querySelector('[data-diagram-editor="true"]') as HTMLElement | null
+    if (inlineEditor && inlineEditor.contains(targetElement)) {
+      return
+    }
+    const diagram = targetElement.closest('.mermaid, .plantuml-container') as HTMLElement | null
+    if (diagram) {
+      event.stopPropagation()
+      const isMermaid = diagram.classList.contains('mermaid')
+      if (isMermaid) {
+        const raw = diagram.getAttribute('data-raw') ?? diagram.textContent ?? ''
+        openDiagramEditorInline(diagram, 'mermaid', raw)
+        return
+      }
+      const img = diagram.querySelector('img')
+      const code = img?.getAttribute('data-plantuml-code') ?? ''
+      openDiagramEditorInline(diagram, 'plantuml', code)
+      return
+    }
+    if (inlineEditor) {
+      const textarea = inlineEditor.querySelector('textarea') as HTMLTextAreaElement | null
+      if (textarea) {
+        const lang = /```plantuml/.test(textarea.value) ? 'plantuml' : 'mermaid'
+        const raw = textarea.value.replace(/```[a-zA-Z]*\s*\n?/g, '').replace(/```\s*$/g, '').trim()
+        const target = inlineEditor.nextElementSibling as HTMLElement | null
+        if (target && (target.classList.contains('mermaid') || target.classList.contains('plantuml-container'))) {
+          applyDiagramCode(target, lang as 'mermaid' | 'plantuml', raw)
+        }
+      }
+      inlineEditor.remove()
+      syncMarkdownFromEditor()
+    }
+  }
 
   return (
     <div className="relative bg-white rounded-lg shadow-md p-4">
@@ -1254,6 +1377,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onClick={handleEditorClick}
         onPaste={handlePaste}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -1263,7 +1387,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         onCompositionEnd={() => {
           isImeComposingRef.current = false
         }}
-        className="markdown-preview min-h-[600px] max-h-[600px] overflow-auto rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="markdown-preview min-h-[300px] rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label="WYSIWYG 编辑区"
         role="textbox"
       />

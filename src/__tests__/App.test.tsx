@@ -529,7 +529,7 @@ describe('App component', () => {
     expect(overlay.getAttribute('aria-hidden')).toBe('true')
   })
 
-  it('should render mermaid diagram in WYSIWYG and round-trip to markdown', () => {
+  it('should render mermaid diagram in WYSIWYG and round-trip to markdown', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
@@ -541,14 +541,25 @@ describe('App component', () => {
       } as unknown as DataTransfer
     })
     expect(editor.querySelector('.mermaid')).toBeTruthy()
+    const mermaidDiv = editor.querySelector('.mermaid') as HTMLElement
+    fireEvent.click(mermaidDiv)
+    const overlay = document.querySelector('[data-diagram-editor="true"]') as HTMLElement
+    expect(overlay).toBeTruthy()
+    const overlayTextarea = screen.getByLabelText('图表源码编辑区') as HTMLTextAreaElement
+    expect(overlayTextarea.value).toContain('```mermaid')
+    overlayTextarea.value = '```mermaid\ngraph TD\nA --> C\n```'
+    fireEvent.input(overlayTextarea)
+    fireEvent.click(editor)
 
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
-    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
-    expect(textarea.value).toContain('```mermaid')
-    expect(textarea.value).toContain('graph TD')
+    const textareaDual = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    await waitFor(() => {
+      expect(textareaDual.value).toContain('```mermaid')
+      expect(textareaDual.value).toContain('graph TD')
+    })
   })
 
-  it('should render plantuml diagram as image in WYSIWYG and round-trip', () => {
+  it('should render plantuml diagram as image in WYSIWYG and round-trip', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
@@ -563,12 +574,23 @@ describe('App component', () => {
     expect(img).toBeTruthy()
     expect(img.src).toContain('plantuml')
     expect(img.getAttribute('data-plantuml-code')).toContain('@startuml')
+    const plantDiv = editor.querySelector('.plantuml-container') as HTMLElement
+    fireEvent.click(plantDiv)
+    const overlay2 = document.querySelector('[data-diagram-editor="true"]') as HTMLElement
+    expect(overlay2).toBeTruthy()
+    const overlayTextarea2 = screen.getByLabelText('图表源码编辑区') as HTMLTextAreaElement
+    expect(overlayTextarea2.value).toContain('```plantuml')
+    overlayTextarea2.value = '```plantuml\n@startuml\nX -> Y: hi\n@enduml\n```'
+    fireEvent.input(overlayTextarea2)
+    fireEvent.click(editor)
 
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
-    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
-    expect(textarea.value).toContain('```plantuml')
-    expect(textarea.value).toContain('@startuml')
-    expect(textarea.value).toContain('@enduml')
+    const textareaDual2 = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    await waitFor(() => {
+      expect(textareaDual2.value).toContain('```plantuml')
+      expect(textareaDual2.value).toContain('@startuml')
+      expect(textareaDual2.value).toContain('@enduml')
+    })
   })
   it('should generate outline from H1-H6 in real time and jump to selected heading', () => {
     render(<App />)

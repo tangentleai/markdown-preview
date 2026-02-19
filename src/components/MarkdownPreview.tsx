@@ -101,7 +101,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown }) => {
       <div className="markdown-preview overflow-auto max-h-[600px]">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeHighlight, rehypeKatex]}
+          rehypePlugins={[[rehypeKatex, { strict: 'warn', throwOnError: false }], rehypeHighlight]}
           components={{
             code: renderCode
           }}

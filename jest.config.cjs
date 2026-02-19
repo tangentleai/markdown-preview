@@ -15,7 +15,10 @@ const config = {
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   testPathIgnorePatterns: ['node_modules'],
-  coveragePathIgnorePatterns: ['node_modules', 'src/__tests__/']
+  coveragePathIgnorePatterns: ['node_modules', 'src/__tests__/'],
+  moduleDirectories: ['node_modules', 'src'],
+  roots: ['<rootDir>'],
+  modulePaths: ['<rootDir>/src']
 }
 
 module.exports = config

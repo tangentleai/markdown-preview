@@ -21,5 +21,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "exclude": ["auto_test_openspec"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
