@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from '../App'
 
 const setCaretAtEnd = (element: HTMLElement): void => {
@@ -77,6 +77,35 @@ describe('App component', () => {
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     expect(textarea.value).toContain('# 内联编辑标题')
     expect(textarea.value).toContain('基础输入内容')
+  })
+
+  it('should mark document dirty after edits and save via Ctrl/Cmd+S shortcut', async () => {
+    const write = jest.fn<Promise<void>, [Blob | string]>().mockResolvedValue()
+    const close = jest.fn<Promise<void>, []>().mockResolvedValue()
+    const handle = {
+      name: 'saved.md',
+      createWritable: jest.fn().mockResolvedValue({ write, close }),
+      getFile: jest.fn().mockResolvedValue({ name: 'saved.md' })
+    }
+    const showSaveFilePicker = jest.fn().mockResolvedValue(handle)
+    Object.defineProperty(window, 'showSaveFilePicker', {
+      configurable: true,
+      writable: true,
+      value: showSaveFilePicker
+    })
+
+    render(<App />)
+
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    fireEvent.change(textarea, { target: { value: '# 保存快捷键测试\n\n内容' } })
+    expect(screen.getByLabelText('保存状态').textContent).toContain('未保存更改')
+
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(showSaveFilePicker).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('保存状态').textContent).toContain('已保存：saved.md')
+    })
   })
 
   it.each([

@@ -108,7 +108,7 @@
         "Run: SCOPE: MIXED",
         "Run: - CLI 校验文件读写与编码；GUI 校验菜单/快捷键流程"
       ],
-      "passes": false
+      "passes": true
     },
     "R9": {
       "category": "functional",
