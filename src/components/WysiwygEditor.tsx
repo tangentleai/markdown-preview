@@ -1190,6 +1190,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
     const container = document.createElement('div')
     container.setAttribute('data-diagram-editor', 'true')
+    container.setAttribute('contenteditable', 'false')
     container.className = 'rounded border border-gray-300 bg-white shadow-sm mb-2'
     const header = document.createElement('div')
     header.className = 'flex items-center justify-between px-2 py-1 border-b border-gray-200'
@@ -1204,12 +1205,13 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     body.className = 'p-2'
     const textarea = document.createElement('textarea')
     textarea.className =
-      'w-full min-h-80 max-h-[65vh] resize-y p-2 border border-gray-300 rounded font-mono text-sm leading-5 outline-none'
+      'w-full min-h-56 max-h-[45vh] resize-y p-2 border border-gray-300 rounded font-mono text-sm leading-5 outline-none'
     textarea.value = `\`\`\`${lang}\n${code.trim()}\n\`\`\``
     textarea.setAttribute('aria-label', '图表源码编辑区')
     body.append(textarea)
     container.append(header, body)
     target.parentElement?.insertBefore(container, target)
+    let applyTimer: number | null = null
     const validate = async (raw: string) => {
       let ok = false
       if (lang === 'mermaid') {
@@ -1224,6 +1226,16 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
       status.textContent = ok ? '语法校验通过' : '语法错误'
       status.className = ok ? 'text-xs text-emerald-600' : 'text-xs text-red-600'
+      return ok
+    }
+    const applyPlantUmlPreview = (raw: string) => {
+      const img = target.querySelector('img')
+      if (!img) {
+        return
+      }
+      img.setAttribute('data-plantuml-code', raw)
+      const encoded = encodePlantUml(raw.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+/g, '\n'))
+      img.setAttribute('src', `https://www.plantuml.com/plantuml/svg/${encoded}`)
     }
     const extract = (md: string): string => {
       const fence = new RegExp('^```' + lang + '\\s*\\n([\\s\\S]*?)\\n```\\s*$', 'm')
@@ -1233,12 +1245,40 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
     textarea.addEventListener('input', () => {
       const raw = extract(textarea.value)
-      void validate(raw)
+      void validate(raw).then((ok) => {
+        if (!ok) {
+          return
+        }
+        if (applyTimer !== null) {
+          window.clearTimeout(applyTimer)
+        }
+        applyTimer = window.setTimeout(() => {
+          if (lang === 'plantuml') {
+            applyPlantUmlPreview(raw)
+          } else {
+            applyDiagramCode(target, lang, raw)
+          }
+        }, 150)
+      })
+    })
+    textarea.addEventListener('blur', () => {
+      const raw = extract(textarea.value)
+      if (lang === 'plantuml') {
+        applyPlantUmlPreview(raw)
+      } else {
+        applyDiagramCode(target, lang, raw)
+      }
+      container.remove()
+      syncMarkdownFromEditor()
     })
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const raw = extract(textarea.value)
-        applyDiagramCode(target, lang, raw)
+        if (lang === 'plantuml') {
+          applyPlantUmlPreview(raw)
+        } else {
+          applyDiagramCode(target, lang, raw)
+        }
         container.remove()
         syncMarkdownFromEditor()
       }
@@ -1247,10 +1287,11 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const applyDiagramCode = (target: HTMLElement, lang: 'mermaid' | 'plantuml', code: string) => {
     if (lang === 'mermaid') {
       target.setAttribute('data-raw', code)
+      target.removeAttribute('data-processed')
       target.textContent = code
       try {
         mermaid.run({
-          nodes: editorRef.current!.querySelectorAll('.mermaid') as unknown as NodeListOf<Element>
+          nodes: [target] as unknown as NodeListOf<Element>
         } as any)
       } catch {}
       return
@@ -1290,7 +1331,16 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       if (textarea) {
         const lang = /```plantuml/.test(textarea.value) ? 'plantuml' : 'mermaid'
         const raw = textarea.value.replace(/```[a-zA-Z]*\s*\n?/g, '').replace(/```\s*$/g, '').trim()
-        const target = inlineEditor.nextElementSibling as HTMLElement | null
+        let target = inlineEditor.nextElementSibling as HTMLElement | null
+        while (
+          target &&
+          !(
+            (target as HTMLElement).classList.contains('mermaid') ||
+            (target as HTMLElement).classList.contains('plantuml-container')
+          )
+        ) {
+          target = target.nextElementSibling as HTMLElement | null
+        }
         if (target && (target.classList.contains('mermaid') || target.classList.contains('plantuml-container'))) {
           applyDiagramCode(target, lang as 'mermaid' | 'plantuml', raw)
         }
