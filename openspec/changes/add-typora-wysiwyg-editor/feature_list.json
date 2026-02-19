@@ -1,0 +1,162 @@
+{
+  "change_id": "add-typora-wysiwyg-editor",
+  "generated_at": "2026-02-18T17:51:14Z",
+  "features": {
+    "R0": {
+      "category": "functional",
+      "description": "实现编辑模式开关并保留现有双栏模式",
+      "task_id": "1.0",
+      "accept": "用户可在“双栏模式 / WYSIWYG 模式”间切换，切换后文档内容保持一致",
+      "test": "SCOPE: GUI\n- 在同一文档中往返切换两种模式，校验内容、光标位置与渲染一致性",
+      "steps": [
+        "Run: SCOPE: GUI",
+        "Run: - 在同一文档中往返切换两种模式，校验内容、光标位置与渲染一致性"
+      ],
+      "passes": true
+    },
+    "R1": {
+      "category": "functional",
+      "description": "完成 WYSIWYG 编辑器内核选型并落地最小可编辑集成",
+      "task_id": "1.1",
+      "accept": "编辑区在单栏中可直接编辑排版结果，具备稳定光标与基础输入能力",
+      "test": "SCOPE: GUI\n- 启动本地服务后，在同一编辑区完成输入、选区、删除操作并保持正常渲染",
+      "steps": [
+        "Run: SCOPE: GUI",
+        "Run: - 启动本地服务后，在同一编辑区完成输入、选区、删除操作并保持正常渲染"
+      ],
+      "passes": false
+    },
+    "R2": {
+      "category": "functional",
+      "description": "建立 Markdown 导入到文档模型的解析流程",
+      "task_id": "1.2",
+      "accept": "支持段落、标题、列表、引用、代码块、链接、图片、表格基础导入",
+      "test": "SCOPE: CLI\n- 运行解析测试集，校验节点结构与预期快照一致",
+      "steps": [
+        "Run: SCOPE: CLI",
+        "Run: - 运行解析测试集，校验节点结构与预期快照一致"
+      ],
+      "passes": false
+    },
+    "R3": {
+      "category": "functional",
+      "description": "建立文档模型导出 Markdown 的序列化流程",
+      "task_id": "1.3",
+      "accept": "导出结果为 UTF-8 Markdown，结构语义与编辑状态一致",
+      "test": "SCOPE: CLI\n- 运行序列化测试集，校验输出文本与期望规则一致",
+      "steps": [
+        "Run: SCOPE: CLI",
+        "Run: - 运行序列化测试集，校验输出文本与期望规则一致"
+      ],
+      "passes": false
+    },
+    "R4": {
+      "category": "functional",
+      "description": "实现块级输入规则（`#`、`-`、`1.`、`>`、代码块）",
+      "task_id": "2.1",
+      "accept": "行首触发后自动结构化，撤销一步可回到触发前状态",
+      "test": "SCOPE: MIXED\n- CLI 校验输入规则事务日志；GUI 校验光标位置与结构转换行为",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI 校验输入规则事务日志；GUI 校验光标位置与结构转换行为"
+      ],
+      "passes": false
+    },
+    "R5": {
+      "category": "functional",
+      "description": "实现行内样式规则（加粗、斜体、行内代码、链接）",
+      "task_id": "2.2",
+      "accept": "闭合触发后渲染正确，编辑光标在样式边界移动不异常",
+      "test": "SCOPE: MIXED\n- CLI 校验节点标记变化；GUI 校验样式显示与光标行为",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI 校验节点标记变化；GUI 校验样式显示与光标行为"
+      ],
+      "passes": false
+    },
+    "R6": {
+      "category": "functional",
+      "description": "实现列表/引用/代码块的回车与退格规则",
+      "task_id": "2.3",
+      "accept": "空列表项回车退出列表，空引用回车退出引用，标题退格回段落",
+      "test": "SCOPE: GUI\n- 执行交互回归用例，校验行为与 DoD 一致",
+      "steps": [
+        "Run: SCOPE: GUI",
+        "Run: - 执行交互回归用例，校验行为与 DoD 一致"
+      ],
+      "passes": false
+    },
+    "R7": {
+      "category": "functional",
+      "description": "增加 IME 组合输入保护与撤销/重做稳定性",
+      "task_id": "2.4",
+      "accept": "中文组合输入阶段不误触发结构转换，撤销重做包含结构事务",
+      "test": "SCOPE: MIXED\n- CLI 校验事务边界；GUI 校验中文输入与快捷键撤销/重做",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI 校验事务边界；GUI 校验中文输入与快捷键撤销/重做"
+      ],
+      "passes": false
+    },
+    "R8": {
+      "category": "functional",
+      "description": "实现打开/保存/另存为与未保存状态提示",
+      "task_id": "3.1",
+      "accept": "支持 `.md/.markdown` 文件显式打开与保存/另存为，`Ctrl/Cmd+S` 可触发保存流程，状态提示准确",
+      "test": "SCOPE: MIXED\n- CLI 校验文件读写与编码；GUI 校验菜单/快捷键流程",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI 校验文件读写与编码；GUI 校验菜单/快捷键流程"
+      ],
+      "passes": false
+    },
+    "R9": {
+      "category": "functional",
+      "description": "实现图片拖拽插入与相对路径资源管理",
+      "task_id": "3.2",
+      "accept": "拖拽本地图片后生成有效 Markdown 图片引用并在编辑区显示图片（MVP 不做自动复制到 assets）",
+      "test": "SCOPE: MIXED\n- CLI 校验资源路径与引用格式；GUI 校验拖拽插入与渲染结果",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI 校验资源路径与引用格式；GUI 校验拖拽插入与渲染结果"
+      ],
+      "passes": false
+    },
+    "R10": {
+      "category": "functional",
+      "description": "实现标题大纲实时生成与定位跳转",
+      "task_id": "3.3",
+      "accept": "大纲按 H1-H6 实时更新，点击可跳转到对应块",
+      "test": "SCOPE: GUI\n- 在多级标题文档中校验大纲刷新与定位准确性",
+      "steps": [
+        "Run: SCOPE: GUI",
+        "Run: - 在多级标题文档中校验大纲刷新与定位准确性"
+      ],
+      "passes": false
+    },
+    "R11": {
+      "category": "functional",
+      "description": "实现查找/替换与基础编辑快捷键",
+      "task_id": "3.4",
+      "accept": "普通文本查找、替换当前/全部可用；加粗/斜体/行内代码快捷键生效（正则替换留到 P1）",
+      "test": "SCOPE: GUI\n- 执行快捷键与查找替换场景，验证结果符合预期",
+      "steps": [
+        "Run: SCOPE: GUI",
+        "Run: - 执行快捷键与查找替换场景，验证结果符合预期"
+      ],
+      "passes": false
+    },
+    "R12": {
+      "category": "functional",
+      "description": "构建 round-trip 与交互 DoD 自动化回归集",
+      "task_id": "4.1",
+      "accept": "覆盖“打开-编辑-保存-重开”结构等价与核心 10 条 DoD 场景",
+      "test": "SCOPE: CLI\n- 运行回归脚本，输出通过率与失败明细供后续验收使用",
+      "steps": [
+        "Run: SCOPE: CLI",
+        "Run: - 运行回归脚本，输出通过率与失败明细供后续验收使用"
+      ],
+      "passes": false
+    }
+  }
+}

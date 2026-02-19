@@ -2,7 +2,10 @@ import React, { useState } from 'react'
 import MarkdownInput from './components/MarkdownInput'
 import MarkdownPreview from './components/MarkdownPreview'
 
+type EditorMode = 'dual-pane' | 'wysiwyg'
+
 function App() {
+  const [editorMode, setEditorMode] = useState<EditorMode>('dual-pane')
   const [markdown, setMarkdown] = useState<string>(`# Markdown Preview
 
 这是一个简单的 Markdown 预览工具。
@@ -74,15 +77,50 @@ Alice -> Bob : 回复
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Markdown Preview</h1>
+          <div className="flex items-center gap-2" role="group" aria-label="编辑模式切换">
+            <button
+              type="button"
+              onClick={() => setEditorMode('dual-pane')}
+              aria-pressed={editorMode === 'dual-pane'}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                editorMode === 'dual-pane'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              双栏模式
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditorMode('wysiwyg')}
+              aria-pressed={editorMode === 'wysiwyg'}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                editorMode === 'wysiwyg'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              WYSIWYG 模式
+            </button>
+          </div>
         </div>
       </header>
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MarkdownInput markdown={markdown} setMarkdown={setMarkdown} />
-          <MarkdownPreview markdown={markdown} />
-        </div>
+        {editorMode === 'dual-pane' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MarkdownInput markdown={markdown} setMarkdown={setMarkdown} />
+            <MarkdownPreview markdown={markdown} />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 px-1">
+              当前为 WYSIWYG 模式，文档内容与双栏模式保持同一份 Markdown 数据。
+            </p>
+            <MarkdownPreview markdown={markdown} />
+          </div>
+        )}
       </main>
       <footer className="bg-white border-t">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
