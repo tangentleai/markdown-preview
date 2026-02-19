@@ -15,6 +15,45 @@ import {
 
 type EditorMode = 'dual-pane' | 'wysiwyg'
 
+interface OutlineHeading {
+  id: string
+  level: number
+  text: string
+  index: number
+}
+
+const normalizeOutlineHeadingText = (value: string): string =>
+  value
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .trim()
+
+const toOutlineHeadings = (sourceMarkdown: string): OutlineHeading[] => {
+  const slugCountByText = new Map<string, number>()
+  let headingIndex = 0
+
+  return sourceMarkdown
+    .split('\n')
+    .flatMap((line) => {
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/)
+      if (!headingMatch) {
+        return []
+      }
+
+      const level = headingMatch[1].length
+      const text = normalizeOutlineHeadingText(headingMatch[2]) || '(空标题)'
+      const currentCount = slugCountByText.get(text) ?? 0
+      slugCountByText.set(text, currentCount + 1)
+      const id = currentCount === 0 ? text : `${text}-${currentCount + 1}`
+      const nextIndex = headingIndex
+      headingIndex += 1
+
+      return [{ id, level, text, index: nextIndex }]
+    })
+}
+
 function App() {
   const [editorMode, setEditorMode] = useState<EditorMode>('dual-pane')
   const [markdown, setMarkdown] = useState<string>(`# Markdown Preview
@@ -88,6 +127,8 @@ Alice -> Bob : 回复
   const [activeFileName, setActiveFileName] = useState<string>('untitled.md')
   const [isDirty, setIsDirty] = useState<boolean>(false)
   const [statusText, setStatusText] = useState<string>('未保存（新文档）')
+  const [jumpToHeadingIndex, setJumpToHeadingIndex] = useState<number | undefined>(undefined)
+  const [jumpRequestNonce, setJumpRequestNonce] = useState(0)
   const openFileInputRef = useRef<HTMLInputElement>(null)
 
   const updateMarkdown = useCallback((nextMarkdown: string) => {
@@ -230,6 +271,7 @@ Alice -> Bob : 回复
   }, [isDirty])
 
   const saveButtonLabel = useMemo(() => (isDirty ? '保存*' : '保存'), [isDirty])
+  const outlineHeadings = useMemo(() => toOutlineHeadings(markdown), [markdown])
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -309,7 +351,38 @@ Alice -> Bob : 回复
             <p className="text-sm text-gray-600 px-1">
               当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
             </p>
-            <WysiwygEditor markdown={markdown} setMarkdown={updateMarkdown} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+              <aside className="rounded-lg border border-gray-200 bg-white p-3" aria-label="标题大纲">
+                <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
+                {outlineHeadings.length > 0 ? (
+                  <ul className="space-y-1" aria-label="标题大纲列表">
+                    {outlineHeadings.map((heading) => (
+                      <li key={heading.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setJumpToHeadingIndex(heading.index)
+                            setJumpRequestNonce((current) => current + 1)
+                          }}
+                          className="w-full truncate rounded px-2 py-1 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                          style={{ paddingLeft: `${heading.level * 10}px` }}
+                        >
+                          {heading.text}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">当前文档暂无 H1-H6 标题</p>
+                )}
+              </aside>
+              <WysiwygEditor
+                markdown={markdown}
+                setMarkdown={updateMarkdown}
+                jumpToHeadingIndex={jumpToHeadingIndex}
+                jumpRequestNonce={jumpRequestNonce}
+              />
+            </div>
           </div>
         )}
       </main>

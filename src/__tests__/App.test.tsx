@@ -331,4 +331,42 @@ describe('App component', () => {
       value: originalCreateObjectURL
     })
   })
+
+  it('should generate outline from H1-H6 in real time and jump to selected heading', () => {
+    render(<App />)
+
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    fireEvent.change(textarea, {
+      target: {
+        value: '# 一级标题\n\n正文段落\n\n## 二级标题\n\n### 三级标题\n\n普通内容'
+      }
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    expect(screen.getByRole('button', { name: '一级标题' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '二级标题' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '三级标题' })).toBeTruthy()
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    const h3 = editor.querySelector('h3') as HTMLElement
+    const scrollSpy = jest.fn()
+    Object.defineProperty(h3, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollSpy
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '三级标题' }))
+
+    expect(scrollSpy).toHaveBeenCalledTimes(1)
+    const selection = window.getSelection()
+    expect(selection?.anchorNode && h3.contains(selection.anchorNode)).toBeTruthy()
+
+    editor.innerHTML = '<h1>更新后标题</h1><p>正文</p>'
+    fireEvent.input(editor)
+
+    expect(screen.getByRole('button', { name: '更新后标题' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '二级标题' })).toBeNull()
+  })
 })

@@ -12,6 +12,8 @@ import { matchInlineStyleRule, type InlineStyleRuleMatch } from '../utils/wysiwy
 interface WysiwygEditorProps {
   markdown: string
   setMarkdown: (value: string) => void
+  jumpToHeadingIndex?: number
+  jumpRequestNonce?: number
 }
 
 const escapeMarkdownAltText = (value: string): string => value.replaceAll('\\', '\\\\').replaceAll(']', '\\]')
@@ -336,7 +338,12 @@ const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch):
   }
 }
 
-const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) => {
+const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
+  markdown,
+  setMarkdown,
+  jumpToHeadingIndex,
+  jumpRequestNonce
+}) => {
   const editorRef = useRef<HTMLDivElement>(null)
   const lastSyncedMarkdownRef = useRef<string>('')
   const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
@@ -354,6 +361,23 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
     editorRef.current.innerHTML = markdownToEditableHtml(markdown)
     lastSyncedMarkdownRef.current = markdown
   }, [markdown])
+
+  useEffect(() => {
+    if (!editorRef.current || jumpToHeadingIndex === undefined) {
+      return
+    }
+
+    const headings = Array.from(editorRef.current.querySelectorAll('h1, h2, h3, h4, h5, h6')) as HTMLElement[]
+    const targetHeading = headings[jumpToHeadingIndex]
+
+    if (!targetHeading) {
+      return
+    }
+
+    targetHeading.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    setCaretToStart(targetHeading)
+    editorRef.current.focus()
+  }, [jumpToHeadingIndex, jumpRequestNonce])
 
   const handleInput = () => {
     if (!editorRef.current) {

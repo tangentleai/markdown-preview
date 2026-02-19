@@ -132,7 +132,7 @@
         "Run: SCOPE: GUI",
         "Run: - 在多级标题文档中校验大纲刷新与定位准确性"
       ],
-      "passes": false
+      "passes": true
     },
     "R11": {
       "category": "functional",
