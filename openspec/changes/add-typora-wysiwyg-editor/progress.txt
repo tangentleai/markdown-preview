@@ -1,13 +1,13 @@
 [MONITOR] SESSION START | change=add-typora-wysiwyg-editor
 timestamp: 2026-02-18T17:53:02Z
-run_counter: 11
+run_counter: 12
 status: active
 
 [RUNBOOK]
-- next_eligible_task: 3.4 [#R11]
-- current_task: 3.4 [#R11]
+- next_eligible_task: 4.1 [#R12]
+- current_task: 4.1 [#R12]
 - worker_session: ses_38c7bca4fffelZbaYHX03SmjyW
-- last_validation_result: PASS (RUN #11, task 3.3, ref R10)
+- last_validation_result: PASS (RUN #12, task 3.4, ref R11)
 
 [LOG]
 - 2026-02-18T17:53:02Z startup ritual completed: tasks.md/feature_list.json/git log checked; progress initialized.
@@ -36,3 +36,4 @@ status: active
 - 2026-02-19T09:39:58Z supervisor acceptance executed for MIXED scope: CLI file-io checks exit=0 and GUI MCP validated open/save/save-as flows with unsaved status transitions; bookkeeping updated (tasks checkbox + EVIDENCE + feature_list R8 passes=true).
 - 2026-02-19T09:58:13Z supervisor acceptance executed for MIXED scope on task 3.2 bundle run-0010__task-3.2__ref-R9__20260219T094455Z: CLI image-reference check exit=0 and GUI MCP validated inline image render + markdown `![local image](local%20image.png)` sync; bookkeeping updated (tasks checkbox + EVIDENCE + feature_list R9 passes=true).
 - 2026-02-19T10:13:28Z supervisor acceptance executed for GUI scope on task 3.3 bundle run-0011__task-3.3__ref-R10__20260219T100210Z: MCP validated real-time outline generation (H1-H3), click-to-jump focus/caret to target heading, and post-edit outline refresh to latest heading set; bookkeeping updated (tasks checkbox + EVIDENCE + feature_list R10 passes=true).
+- 2026-02-19T10:27:48Z supervisor acceptance executed for GUI scope on task 3.4 bundle run-0012__task-3.4__ref-R11__20260219T101923Z: MCP validated plain-text find/replace (current/all) and Ctrl/Cmd+B/I/E formatting shortcuts with markdown sync in dual-pane; bookkeeping updated (tasks checkbox + EVIDENCE + feature_list R11 passes=true).

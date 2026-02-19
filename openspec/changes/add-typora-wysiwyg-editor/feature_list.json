@@ -144,7 +144,7 @@
         "Run: SCOPE: GUI",
         "Run: - 执行快捷键与查找替换场景，验证结果符合预期"
       ],
-      "passes": false
+      "passes": true
     },
     "R12": {
       "category": "functional",

@@ -23,6 +23,26 @@ const setCaretAtStart = (element: HTMLElement): void => {
   selection?.addRange(range)
 }
 
+const selectTextInElement = (element: HTMLElement, targetText: string): void => {
+  const textNode = element.firstChild as Text | null
+  if (!textNode) {
+    return
+  }
+
+  const fullText = textNode.textContent ?? ''
+  const start = fullText.indexOf(targetText)
+  if (start < 0) {
+    return
+  }
+
+  const selection = window.getSelection()
+  const range = document.createRange()
+  range.setStart(textNode, start)
+  range.setEnd(textNode, start + targetText.length)
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+}
+
 describe('App component', () => {
   it('should render the main application', () => {
     render(<App />)
@@ -294,6 +314,47 @@ describe('App component', () => {
 
     fireEvent.keyDown(editor, { key: 'z', ctrlKey: true, shiftKey: true })
     expect(editor.querySelector('p')?.textContent).toBe('标题文本')
+  })
+
+  it('should support plain text find/replace current and replace-all in WYSIWYG mode', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>alpha beta alpha beta</p>'
+    fireEvent.input(editor)
+
+    fireEvent.change(screen.getByLabelText('查找文本'), { target: { value: 'alpha' } })
+    fireEvent.change(screen.getByLabelText('替换文本'), { target: { value: 'ALPHA' } })
+
+    fireEvent.click(screen.getByRole('button', { name: '查找下一个' }))
+    fireEvent.click(screen.getByRole('button', { name: '替换当前' }))
+    expect(editor.textContent).toContain('ALPHA beta alpha beta')
+
+    fireEvent.click(screen.getByRole('button', { name: '全部替换' }))
+    expect(editor.textContent).toContain('ALPHA beta ALPHA beta')
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('ALPHA beta ALPHA beta')
+  })
+
+  it.each([
+    { key: 'b', tag: 'strong', text: 'bold' },
+    { key: 'i', tag: 'em', text: 'italic' },
+    { key: 'e', tag: 'code', text: 'code' }
+  ])('should apply inline shortcut %s for selected text', ({ key, tag, text }) => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>bold italic code</p>'
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    selectTextInElement(paragraph, text)
+    fireEvent.keyDown(editor, { key, ctrlKey: true })
+
+    expect(editor.querySelector(tag)?.textContent).toBe(text)
   })
 
   it('should insert dropped local image as markdown reference and render inline in WYSIWYG editor', () => {

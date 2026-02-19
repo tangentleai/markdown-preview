@@ -337,7 +337,7 @@ Alice -> Bob : 回复
           <span className="text-gray-400">|</span>
           <span aria-label="保存状态">状态：{statusText}</span>
           <span className="text-gray-400">|</span>
-          <span>快捷键：Ctrl/Cmd+S</span>
+          <span>快捷键：Ctrl/Cmd+S（WYSIWYG: Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+E）</span>
         </div>
       </header>
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">

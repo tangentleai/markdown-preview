@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { markdownToEditableHtml } from '../utils/markdownDocumentModel'
 import {
   BlockInputRuleUndoStack,
@@ -177,6 +177,129 @@ const isSelectionInsideEditor = (selection: Selection, editor: HTMLElement): boo
   return editor.contains(anchorNode)
 }
 
+const findPlainTextMatches = (source: string, query: string): Array<{ start: number; end: number }> => {
+  if (!query) {
+    return []
+  }
+
+  const matches: Array<{ start: number; end: number }> = []
+  let cursor = 0
+
+  while (cursor <= source.length - query.length) {
+    const foundIndex = source.indexOf(query, cursor)
+    if (foundIndex < 0) {
+      break
+    }
+
+    matches.push({ start: foundIndex, end: foundIndex + query.length })
+    cursor = foundIndex + query.length
+  }
+
+  return matches
+}
+
+const resolveTextPosition = (
+  editor: HTMLElement,
+  targetOffset: number,
+  preferEnd: boolean
+): { node: Text; offset: number } | null => {
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+  let traversed = 0
+  let lastTextNode: Text | null = null
+
+  while (walker.nextNode()) {
+    const currentNode = walker.currentNode as Text
+    const textLength = currentNode.textContent?.length ?? 0
+    lastTextNode = currentNode
+
+    if (targetOffset < traversed + textLength || (preferEnd && targetOffset === traversed + textLength)) {
+      return {
+        node: currentNode,
+        offset: Math.max(0, Math.min(textLength, targetOffset - traversed))
+      }
+    }
+
+    traversed += textLength
+  }
+
+  if (!lastTextNode) {
+    return null
+  }
+
+  return {
+    node: lastTextNode,
+    offset: lastTextNode.textContent?.length ?? 0
+  }
+}
+
+const createRangeFromOffsets = (editor: HTMLElement, start: number, end: number): Range | null => {
+  const startPosition = resolveTextPosition(editor, start, false)
+  const endPosition = resolveTextPosition(editor, end, true)
+
+  if (!startPosition || !endPosition) {
+    return null
+  }
+
+  const range = document.createRange()
+  range.setStart(startPosition.node, startPosition.offset)
+  range.setEnd(endPosition.node, endPosition.offset)
+  return range
+}
+
+const selectEditorRangeByOffsets = (editor: HTMLElement, start: number, end: number): boolean => {
+  const range = createRangeFromOffsets(editor, start, end)
+  const selection = window.getSelection()
+
+  if (!range || !selection) {
+    return false
+  }
+
+  selection.removeAllRanges()
+  selection.addRange(range)
+  return true
+}
+
+const replaceEditorRangeByOffsets = (
+  editor: HTMLElement,
+  start: number,
+  end: number,
+  replacement: string
+): boolean => {
+  const range = createRangeFromOffsets(editor, start, end)
+  if (!range) {
+    return false
+  }
+
+  range.deleteContents()
+  const replacementNode = document.createTextNode(replacement)
+  range.insertNode(replacementNode)
+  setCaretAfterNode(replacementNode)
+  return true
+}
+
+const replaceAllInEditorTextNodes = (editor: HTMLElement, query: string, replacement: string): number => {
+  if (!query) {
+    return 0
+  }
+
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+  let replaceCount = 0
+
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode as Text
+    const source = textNode.textContent ?? ''
+    if (!source.includes(query)) {
+      continue
+    }
+
+    const parts = source.split(query)
+    replaceCount += parts.length - 1
+    textNode.textContent = parts.join(replacement)
+  }
+
+  return replaceCount
+}
+
 const insertNodeAtSelectionOrAppend = (editor: HTMLElement, node: Node): void => {
   const selection = window.getSelection()
   if (!selection || selection.rangeCount === 0 || !isSelectionInsideEditor(selection, editor)) {
@@ -348,6 +471,10 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const lastSyncedMarkdownRef = useRef<string>('')
   const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
   const isImeComposingRef = useRef(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [replaceQuery, setReplaceQuery] = useState('')
+  const [activeFindIndex, setActiveFindIndex] = useState(-1)
+  const [findResultCount, setFindResultCount] = useState(0)
 
   useEffect(() => {
     if (!editorRef.current) {
@@ -379,6 +506,29 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     editorRef.current.focus()
   }, [jumpToHeadingIndex, jumpRequestNonce])
 
+  useEffect(() => {
+    if (!editorRef.current || !findQuery) {
+      setFindResultCount(0)
+      setActiveFindIndex(-1)
+      return
+    }
+
+    const currentPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const matches = findPlainTextMatches(currentPlainText, findQuery)
+    setFindResultCount(matches.length)
+    setActiveFindIndex((current) => {
+      if (matches.length === 0) {
+        return -1
+      }
+
+      if (current < 0) {
+        return -1
+      }
+
+      return Math.min(current, matches.length - 1)
+    })
+  }, [findQuery, markdown])
+
   const handleInput = () => {
     if (!editorRef.current) {
       return
@@ -399,6 +549,122 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleFindNext = () => {
+    if (!editorRef.current || !findQuery) {
+      return
+    }
+
+    const currentPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const matches = findPlainTextMatches(currentPlainText, findQuery)
+    setFindResultCount(matches.length)
+
+    if (matches.length === 0) {
+      setActiveFindIndex(-1)
+      return
+    }
+
+    const nextIndex = activeFindIndex < 0 ? 0 : (activeFindIndex + 1) % matches.length
+    const nextMatch = matches[nextIndex]
+    const selected = selectEditorRangeByOffsets(editorRef.current, nextMatch.start, nextMatch.end)
+
+    if (selected) {
+      editorRef.current.focus()
+      setActiveFindIndex(nextIndex)
+    }
+  }
+
+  const syncMarkdownFromEditor = () => {
+    if (!editorRef.current) {
+      return
+    }
+
+    const nextMarkdown = htmlToMarkdown(editorRef.current)
+    lastSyncedMarkdownRef.current = nextMarkdown
+    if (nextMarkdown !== markdown) {
+      setMarkdown(nextMarkdown)
+    }
+  }
+
+  const handleReplaceCurrent = () => {
+    if (!editorRef.current || !findQuery) {
+      return
+    }
+
+    const currentPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const matches = findPlainTextMatches(currentPlainText, findQuery)
+    setFindResultCount(matches.length)
+
+    if (matches.length === 0) {
+      setActiveFindIndex(-1)
+      return
+    }
+
+    const targetIndex = activeFindIndex < 0 ? 0 : Math.min(activeFindIndex, matches.length - 1)
+    const targetMatch = matches[targetIndex]
+    const replaced = replaceEditorRangeByOffsets(editorRef.current, targetMatch.start, targetMatch.end, replaceQuery)
+
+    if (!replaced) {
+      return
+    }
+
+    syncMarkdownFromEditor()
+
+    const refreshedPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const refreshedMatches = findPlainTextMatches(refreshedPlainText, findQuery)
+    setFindResultCount(refreshedMatches.length)
+
+    if (refreshedMatches.length === 0) {
+      setActiveFindIndex(-1)
+      return
+    }
+
+    const nextIndex = Math.min(targetIndex, refreshedMatches.length - 1)
+    setActiveFindIndex(nextIndex)
+    const nextMatch = refreshedMatches[nextIndex]
+    selectEditorRangeByOffsets(editorRef.current, nextMatch.start, nextMatch.end)
+  }
+
+  const handleReplaceAll = () => {
+    if (!editorRef.current || !findQuery) {
+      return
+    }
+
+    const replaceCount = replaceAllInEditorTextNodes(editorRef.current, findQuery, replaceQuery)
+    if (replaceCount === 0) {
+      return
+    }
+
+    syncMarkdownFromEditor()
+    setFindResultCount(0)
+    setActiveFindIndex(-1)
+  }
+
+  const applyInlineShortcut = (tagName: 'strong' | 'em' | 'code'): boolean => {
+    if (!editorRef.current) {
+      return false
+    }
+
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return false
+    }
+
+    const range = selection.getRangeAt(0)
+    const commonAncestor = range.commonAncestorContainer
+    if (!editorRef.current.contains(commonAncestor)) {
+      return false
+    }
+
+    const wrapper = document.createElement(tagName)
+    const extracted = range.extractContents()
+    wrapper.append(extracted)
+    range.insertNode(wrapper)
+    setCaretAfterNode(wrapper)
+
+    syncMarkdownFromEditor()
+    return true
   }
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -474,6 +740,24 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
 
     const imeComposingNow = isImeComposingEvent(event.nativeEvent, isImeComposingRef.current)
+    const normalizedKey = event.key.toLowerCase()
+
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if (normalizedKey === 'b' && applyInlineShortcut('strong')) {
+        event.preventDefault()
+        return
+      }
+
+      if (normalizedKey === 'i' && applyInlineShortcut('em')) {
+        event.preventDefault()
+        return
+      }
+
+      if (normalizedKey === 'e' && applyInlineShortcut('code')) {
+        event.preventDefault()
+        return
+      }
+    }
 
     if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
       const transaction = structuralHistoryRef.current.undo()
@@ -706,6 +990,58 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold mb-3 text-gray-800">WYSIWYG 编辑</h2>
       <p className="text-sm text-gray-600 mb-3">内核选型: 原生 contentEditable（MVP 最小可编辑集成）</p>
+      <div className="mb-3 rounded border border-gray-200 bg-gray-50 p-3" aria-label="查找替换工具栏">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={findQuery}
+            onChange={(event) => {
+              setFindQuery(event.target.value)
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            placeholder="查找文本"
+            aria-label="查找文本"
+          />
+          <input
+            type="text"
+            value={replaceQuery}
+            onChange={(event) => {
+              setReplaceQuery(event.target.value)
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            placeholder="替换为"
+            aria-label="替换文本"
+          />
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleFindNext}
+            className="rounded bg-slate-100 px-2 py-1 text-sm text-slate-700 hover:bg-slate-200"
+          >
+            查找下一个
+          </button>
+          <button
+            type="button"
+            onClick={handleReplaceCurrent}
+            className="rounded bg-blue-100 px-2 py-1 text-sm text-blue-700 hover:bg-blue-200"
+          >
+            替换当前
+          </button>
+          <button
+            type="button"
+            onClick={handleReplaceAll}
+            className="rounded bg-indigo-100 px-2 py-1 text-sm text-indigo-700 hover:bg-indigo-200"
+          >
+            全部替换
+          </button>
+          <span className="text-xs text-gray-600" aria-label="查找结果计数">
+            匹配：
+            {findResultCount === 0 ? '0' : `${activeFindIndex + 1}/${findResultCount}`}
+          </span>
+          <span className="text-xs text-gray-500">快捷键：Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+E</span>
+        </div>
+      </div>
       <div
         ref={editorRef}
         contentEditable
