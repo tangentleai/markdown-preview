@@ -68,6 +68,7 @@ describe('DoD CLI regression suite', () => {
 
   it('should preserve markdown after dual-pane <-> WYSIWYG mode switch', () => {
     render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     const markdown = '# 模式回归\n\n切换后保持一致。'
 
@@ -215,7 +216,7 @@ describe('DoD CLI regression suite', () => {
 
     fireEvent.drop(editor, { dataTransfer: { files: [imageFile] } })
 
-    const image = editor.querySelector('img') as HTMLImageElement
+    const image = editor.querySelector('img[data-markdown-src]') as HTMLImageElement
     expect(image).toBeTruthy()
     expect(image.getAttribute('data-markdown-src')).toBe('local%20image.png')
 

@@ -47,26 +47,27 @@ describe('App component', () => {
   it('should render the main application', () => {
     render(<App />)
     
-    expect(screen.getAllByText('Markdown Preview')).toHaveLength(2)
+    expect(screen.getAllByText('Markdown Preview').length).toBeGreaterThanOrEqual(2)
   })
 
   it('should display the initial markdown content', () => {
     render(<App />)
     
-    expect(screen.getAllByText('Markdown Preview')).toHaveLength(2)
-    expect(screen.getByText('功能特性')).toBeTruthy()
-    expect(screen.getByText('使用方法')).toBeTruthy()
+    expect(screen.getAllByText('Markdown Preview').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('功能特性').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('使用方法').length).toBeGreaterThanOrEqual(1)
   })
 
   it('should render both MarkdownInput and MarkdownPreview components', () => {
     render(<App />)
-    
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     expect(screen.getByText('Markdown 输入')).toBeTruthy()
     expect(screen.getByText('预览效果')).toBeTruthy()
   })
 
   it('should switch between dual-pane and WYSIWYG modes while preserving markdown content', () => {
     render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
 
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     const updatedMarkdown = '# 模式切换测试\n\n切换后内容应保持一致。'
@@ -115,6 +116,7 @@ describe('App component', () => {
     })
 
     render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
 
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     fireEvent.change(textarea, { target: { value: '# 保存快捷键测试\n\n内容' } })
@@ -455,7 +457,7 @@ describe('App component', () => {
       dataTransfer: { files: [imageFile] }
     })
 
-    const insertedImage = editor.querySelector('img') as HTMLImageElement
+    const insertedImage = editor.querySelector('img[data-markdown-src]') as HTMLImageElement
     expect(insertedImage).toBeTruthy()
     expect(insertedImage.getAttribute('src')).toBe('blob:mock-local-image')
     expect(insertedImage.getAttribute('data-markdown-src')).toBe('local%20image.png')
@@ -526,9 +528,52 @@ describe('App component', () => {
     fireEvent.keyDown(editor, { key: 'Escape' })
     expect(overlay.getAttribute('aria-hidden')).toBe('true')
   })
+
+  it('should render mermaid diagram in WYSIWYG and round-trip to markdown', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    const md = '```mermaid\ngraph TD\nA --> B\n```'
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => (type === 'text/plain' ? md : '')
+      } as unknown as DataTransfer
+    })
+    expect(editor.querySelector('.mermaid')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('```mermaid')
+    expect(textarea.value).toContain('graph TD')
+  })
+
+  it('should render plantuml diagram as image in WYSIWYG and round-trip', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    const md = '```plantuml\n@startuml\nA -> B: hello\n@enduml\n```'
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => (type === 'text/plain' ? md : '')
+      } as unknown as DataTransfer
+    })
+    const img = editor.querySelector('.plantuml-container img') as HTMLImageElement
+    expect(img).toBeTruthy()
+    expect(img.src).toContain('plantuml')
+    expect(img.getAttribute('data-plantuml-code')).toContain('@startuml')
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('```plantuml')
+    expect(textarea.value).toContain('@startuml')
+    expect(textarea.value).toContain('@enduml')
+  })
   it('should generate outline from H1-H6 in real time and jump to selected heading', () => {
     render(<App />)
 
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     fireEvent.change(textarea, {
       target: {

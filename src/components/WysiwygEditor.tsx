@@ -10,6 +10,7 @@ import {
 import { matchInlineStyleRule, type InlineStyleRuleMatch } from '../utils/wysiwygInlineStyleRules'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import mermaid from 'mermaid'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -92,6 +93,21 @@ const blockToMarkdown = (element: Element): string => {
   if (tagName === 'DIV' && (element.getAttribute('class') ?? '').includes('math-block')) {
     const tex = element.getAttribute('data-tex') ?? ''
     return `$$\n${tex}\n$$`
+  }
+
+  if (tagName === 'DIV') {
+    const cls = (element.getAttribute('class') ?? '').toLowerCase()
+    if (cls.includes('mermaid')) {
+      const raw = element.getAttribute('data-raw') ?? element.textContent ?? ''
+      return `\`\`\`mermaid\n${raw.trim()}\n\`\`\``
+    }
+    if (cls.includes('plantuml-container')) {
+      const img = element.querySelector('img')
+      const code = img?.getAttribute('data-plantuml-code') ?? ''
+      if (code) {
+        return `\`\`\`plantuml\n${code}\n\`\`\``
+      }
+    }
   }
 
   if (tagName === 'UL') {
@@ -588,6 +604,26 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     lastSyncedMarkdownRef.current = markdown
   }, [markdown])
 
+  useEffect(() => {
+    if (!editorRef.current) {
+      return
+    }
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose'
+    })
+    const elements = editorRef.current.querySelectorAll('.mermaid')
+    if (elements.length > 0) {
+      try {
+        mermaid.run({
+          nodes: elements as unknown as NodeListOf<Element>
+        } as any)
+      } catch {
+        // ignore
+      }
+    }
+  }, [markdown])
   useEffect(() => {
     if (!editorRef.current || jumpToHeadingIndex === undefined) {
       return

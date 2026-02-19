@@ -1,4 +1,5 @@
 import katex from 'katex'
+import { encode as encodePlantUml } from 'plantuml-encoder'
 
 export type InlineNode =
   | { type: 'text'; value: string }
@@ -371,8 +372,22 @@ const blockNodeToHtml = (node: BlockNode): string => {
     }
     case 'quote':
       return `<blockquote>${node.blocks.map(blockNodeToHtml).join('')}</blockquote>`
-    case 'codeBlock':
+    case 'codeBlock': {
+      const lang = node.language?.toLowerCase() ?? ''
+      if (lang === 'mermaid') {
+        const raw = node.code.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        return `<div class="mermaid" data-raw="${escapeHtml(raw)}">${escapeHtml(raw)}</div>`
+      }
+      if (lang === 'plantuml') {
+        const plantUmlCode = node.code.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+/g, '\n')
+        const encoded = encodePlantUml(plantUmlCode)
+        const url = `https://www.plantuml.com/plantuml/svg/${encoded}`
+        return `<div class="plantuml-container"><img src="${url}" alt="PlantUML Diagram" data-plantuml-code="${escapeHtml(
+          plantUmlCode
+        )}" class="max-w-full h-auto" /></div>`
+      }
       return `<pre><code>${escapeHtml(node.code)}</code></pre>`
+    }
     case 'mathBlock': {
       const rendered = katex.renderToString(node.tex, { throwOnError: false, displayMode: true })
       return `<div class="math-block" data-tex="${escapeHtml(node.tex)}">${rendered}</div>`

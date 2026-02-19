@@ -55,7 +55,7 @@ const toOutlineHeadings = (sourceMarkdown: string): OutlineHeading[] => {
 }
 
 function App() {
-  const [editorMode, setEditorMode] = useState<EditorMode>('dual-pane')
+  const [editorMode, setEditorMode] = useState<EditorMode>('wysiwyg')
   const [markdown, setMarkdown] = useState<string>(`# Markdown Preview
 
 这是一个简单的 Markdown 预览工具。
