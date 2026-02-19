@@ -332,7 +332,7 @@ Alice -> Bob : 回复
             </button>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 pb-3 sm:px-6 lg:px-8 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+        <div className="max-w-7xl mx-auto px-4 pb-1 sm:px-6 lg:px-8 flex flex-wrap items-center gap-2 text-sm text-gray-600">
           <span aria-label="当前文件">文件：{activeFileName}</span>
           <span className="text-gray-400">|</span>
           <span aria-label="保存状态">状态：{statusText}</span>
@@ -340,7 +340,7 @@ Alice -> Bob : 回复
           <span>快捷键：Ctrl/Cmd+S（WYSIWYG: Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+E）</span>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto pt-2 pb-6 sm:px-6 lg:px-8">
         {editorMode === 'dual-pane' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <MarkdownInput markdown={markdown} setMarkdown={updateMarkdown} />
