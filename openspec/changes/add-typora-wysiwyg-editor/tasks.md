@@ -20,10 +20,12 @@
   - BUNDLE (RUN #3): Task 1.2 markdown import parser bundle (CLI snapshot checks) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #3): Supervisor executed CLI validation bundle and verified markdown import parser test suite output | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z/run.sh (exit=0) | RESULT: PASS | CLI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z/logs/supervisor_run.log, auto_test_openspec/add-typora-wysiwyg-editor/run-0003__task-1.2__ref-R2__20260219T020933Z/outputs/test-output.txt
 
-- [ ] 1.3 建立文档模型导出 Markdown 的序列化流程 [#R3]
+- [x] 1.3 建立文档模型导出 Markdown 的序列化流程 [#R3]
   - ACCEPT: 导出结果为 UTF-8 Markdown，结构语义与编辑状态一致
   - TEST: SCOPE: CLI
     - 运行序列化测试集，校验输出文本与期望规则一致
+  - BUNDLE (RUN #4): Task 1.3 document-model markdown serialization bundle (CLI utf-8 + structural round-trip checks) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #4): Supervisor executed CLI serialization bundle and verified utf-8 markdown serialization + round-trip checks | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z/run.sh (exit=0) | RESULT: PASS | CLI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z/logs/supervisor_run.log, auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z/outputs/test-output.txt
 
 ## 2. 输入规则与可逆编辑
 - [ ] 2.1 实现块级输入规则（`#`、`-`、`1.`、`>`、代码块） [#R4]

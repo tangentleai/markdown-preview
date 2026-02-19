@@ -239,6 +239,78 @@ export const parseMarkdownToDocumentModel = (markdown: string): DocumentModel =>
   blocks: parseMarkdownLines(markdown.split('\n'))
 })
 
+const escapeMarkdownText = (value: string): string =>
+  value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('*', '\\*')
+    .replaceAll('`', '\\`')
+    .replaceAll('[', '\\[')
+    .replaceAll(']', '\\]')
+
+const inlineNodeToMarkdown = (node: InlineNode): string => {
+  switch (node.type) {
+    case 'text':
+      return escapeMarkdownText(node.value)
+    case 'code':
+      return `\`${node.value.replaceAll('`', '\\`')}\``
+    case 'strong':
+      return `**${node.children.map(inlineNodeToMarkdown).join('')}**`
+    case 'em':
+      return `*${node.children.map(inlineNodeToMarkdown).join('')}*`
+    case 'link':
+      return `[${node.children.map(inlineNodeToMarkdown).join('')}](${node.href})`
+    case 'image':
+      return `![${escapeMarkdownText(node.alt)}](${node.src})`
+    default:
+      return ''
+  }
+}
+
+const blockNodeToMarkdown = (node: BlockNode): string => {
+  switch (node.type) {
+    case 'paragraph':
+      return node.children.map(inlineNodeToMarkdown).join('')
+    case 'heading':
+      return `${'#'.repeat(node.level)} ${node.children.map(inlineNodeToMarkdown).join('')}`
+    case 'list': {
+      const marker = node.ordered ? (index: number) => `${index + 1}. ` : () => '- '
+      return node.items
+        .map((item, index) => `${marker(index)}${item.map(inlineNodeToMarkdown).join('')}`)
+        .join('\n')
+    }
+    case 'quote': {
+      const content = node.blocks.map(blockNodeToMarkdown).join('\n\n')
+      return content
+        .split('\n')
+        .map((line) => (line ? `> ${line}` : '>'))
+        .join('\n')
+    }
+    case 'codeBlock': {
+      const language = node.language.trim()
+      const header = language ? `\`\`\`${language}` : '```'
+      return `${header}\n${node.code}\n\`\`\``
+    }
+    case 'table': {
+      const toRow = (row: InlineNode[][]): string => `| ${row.map((cell) => cell.map(inlineNodeToMarkdown).join('')).join(' | ')} |`
+      const delimiter = `| ${node.header.map(() => '---').join(' | ')} |`
+      const rows = node.rows.map(toRow)
+      return [toRow(node.header), delimiter, ...rows].join('\n')
+    }
+    default:
+      return ''
+  }
+}
+
+export const serializeDocumentModelToMarkdown = (model: DocumentModel): string => {
+  const blocks = model.blocks.map(blockNodeToMarkdown).filter((block) => block.trim().length > 0)
+
+  if (blocks.length === 0) {
+    return ''
+  }
+
+  return `${blocks.join('\n\n')}\n`
+}
+
 const inlineNodeToHtml = (node: InlineNode): string => {
   switch (node.type) {
     case 'text':

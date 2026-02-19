@@ -48,7 +48,7 @@
         "Run: SCOPE: CLI",
         "Run: - 运行序列化测试集，校验输出文本与期望规则一致"
       ],
-      "passes": false
+      "passes": true
     },
     "R4": {
       "category": "functional",
