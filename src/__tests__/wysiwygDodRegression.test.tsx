@@ -186,6 +186,7 @@ describe('DoD CLI regression suite', () => {
     editor.innerHTML = '<p>alpha beta alpha beta</p>'
     fireEvent.input(editor)
 
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
     fireEvent.change(screen.getByLabelText('查找文本'), { target: { value: 'alpha' } })
     fireEvent.change(screen.getByLabelText('替换文本'), { target: { value: 'ALPHA' } })
 

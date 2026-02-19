@@ -57,4 +57,79 @@ allowed-tools:
 - 每次仅派发**一个任务**，完成后再派发下一个
 
 #### 步骤3：子任务派发给openspec-worker
-使用`task`工具派生子任务，**严格禁止自己写代码**，子任务指令模板：
+
+使用`task`工具启动`openspec-worker`，并保存返回值中的`task_id`和`session_id`：
+
+```json
+{
+  "subagent_type": "openspec-worker",
+  "description": "Implement <task-ref>",
+  "prompt": "只实现 tasks.md 里 <task-ref>；完成后生成验收包到 auto_test_openspec/<change-id>/<task-ref>/",
+  "run_in_background": true
+}
+```
+
+### C. 跟踪与查看子agent上下文
+1. 跟踪执行输出：
+   - `background_output({"task_id":"<task_id>","full_session":true})`
+2. 查看会话元信息：
+   - `session_info({"session_id":"<session_id>"})`
+3. 查看完整上下文（含todos/transcript）：
+   - `session_read({"session_id":"<session_id>","include_todos":true,"include_transcript":true})`
+
+### D. 失败重试（保持同一session）
+如果失败，复用原`session_id`继续派发，保证上下文连续：
+
+```json
+{
+  "subagent_type": "openspec-worker",
+  "session_id": "<session_id>",
+  "description": "Retry <task-ref>",
+  "prompt": "上次失败原因：<error>. 仅修复该问题并重建验收包。",
+  "run_in_background": true,
+  "load_skills": []
+}
+```
+
+重试规则：
+- 每次失败后`RUN_COUNTER += 1`
+- 若`RUN_COUNTER < RUN_MAX`，继续重试
+- 若`RUN_COUNTER >= RUN_MAX`，标记`MAXED`并停止该任务
+
+### E. 失败时调用unblock研究
+任务失败时调用`openspec-unblock-research`：
+1. 产出可执行修复建议
+2. 建议摘要写入`progress.txt`
+3. 将建议下发给同一`session_id`的Worker执行
+
+### F. 验收执行（必须Supervisor亲自运行）
+只接受Supervisor本地验收结果，不接受Worker口头声明。
+
+CLI任务验收命令：
+- Unix: `bash auto_test_openspec/<change-id>/<task-ref>/run.sh`
+- Windows: `bash auto_test_openspec/<change-id>/<task-ref>/run.bat`
+
+### G. 验收通过后的记账顺序（不可打乱）
+1. 勾选`tasks.md`对应复选框
+2. 在`tasks.md`补充EVIDENCE行（命令、结果、时间、产物路径）
+3. 仅将`feature_list.json`中对应`ref`的`passes`改为`true`
+4. 追加`progress.txt`日志
+5. Git记账提交
+
+Git记账示例：
+
+```bash
+git status
+git add openspec/changes/<change-id>/tasks.md \
+        openspec/changes/<change-id>/progress.txt \
+        openspec/changes/<change-id>/feature_list.json
+git commit -m "chore(openspec): accept <task-ref> after supervisor verification"
+git rev-parse --short HEAD
+```
+
+### H. progress.txt推荐日志格式
+
+```text
+[RUN <run_counter>] task=<task-ref> worker_session=<session_id> result=FAIL reason=<...>
+[RUN <run_counter+1>] task=<task-ref> worker_session=<session_id> result=PASS evidence=auto_test_openspec/<change-id>/<task-ref>/
+```

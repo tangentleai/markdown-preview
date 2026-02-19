@@ -348,9 +348,9 @@ Alice -> Bob : 回复
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-600 px-1">
+            {/* <p className="text-sm text-gray-600 px-1">
               当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
-            </p>
+            </p> */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
               <aside className="rounded-lg border border-gray-200 bg-white p-3" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>

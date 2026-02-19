@@ -523,10 +523,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const lastSyncedMarkdownRef = useRef<string>('')
   const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
   const isImeComposingRef = useRef(false)
+  const findInputRef = useRef<HTMLInputElement>(null)
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
   const [activeFindIndex, setActiveFindIndex] = useState(-1)
   const [findResultCount, setFindResultCount] = useState(0)
+  const [showFindToolbar, setShowFindToolbar] = useState(false)
 
   const looksLikeMarkdown = (value: string): boolean => {
     if (!value || !/\S/.test(value)) {
@@ -625,6 +627,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return Math.min(current, matches.length - 1)
     })
   }, [findQuery, markdown])
+
+  useEffect(() => {
+    if (showFindToolbar) {
+      findInputRef.current?.focus()
+    }
+  }, [showFindToolbar])
 
   const handleInput = () => {
     if (!editorRef.current) {
@@ -839,7 +847,18 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     const imeComposingNow = isImeComposingEvent(event.nativeEvent, isImeComposingRef.current)
     const normalizedKey = event.key.toLowerCase()
 
+    if (event.key === 'Escape' && showFindToolbar) {
+      event.preventDefault()
+      setShowFindToolbar(false)
+      return
+    }
+
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if (normalizedKey === 'f') {
+        event.preventDefault()
+        setShowFindToolbar(true)
+        return
+      }
       if (normalizedKey === 'b' && applyInlineShortcut('strong')) {
         event.preventDefault()
         return
@@ -1123,31 +1142,46 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-lg font-semibold mb-3 text-gray-800">WYSIWYG 编辑</h2>
-      <p className="text-sm text-gray-600 mb-3">内核选型: 原生 contentEditable（MVP 最小可编辑集成）</p>
-      <div className="mb-3 rounded border border-gray-200 bg-gray-50 p-3" aria-label="查找替换工具栏">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            value={findQuery}
-            onChange={(event) => {
-              setFindQuery(event.target.value)
-            }}
-            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-            placeholder="查找文本"
-            aria-label="查找文本"
-          />
-          <input
-            type="text"
-            value={replaceQuery}
-            onChange={(event) => {
-              setReplaceQuery(event.target.value)
-            }}
-            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-            placeholder="替换为"
-            aria-label="替换文本"
-          />
+    <div className="relative bg-white rounded-lg shadow-md p-4">
+      <div
+        aria-label="查找替换工具栏"
+        aria-hidden={!showFindToolbar}
+        className={`pointer-events-auto absolute right-3 top-3 z-20 w-[min(640px,90%)] rounded border border-gray-200 bg-white p-3 shadow-lg transition-all duration-200 ${
+          showFindToolbar ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex-1 flex flex-col gap-2 sm:flex-row">
+            <input
+              ref={findInputRef}
+              type="text"
+              value={findQuery}
+              onChange={(event) => {
+                setFindQuery(event.target.value)
+              }}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+              placeholder="查找文本"
+              aria-label="查找文本"
+            />
+            <input
+              type="text"
+              value={replaceQuery}
+              onChange={(event) => {
+                setReplaceQuery(event.target.value)
+              }}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+              placeholder="替换为"
+              aria-label="替换文本"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFindToolbar(false)}
+            aria-label="关闭查找替换工具栏"
+            className="rounded bg-gray-100 px-2 py-1 text-sm text-gray-700 hover:bg-gray-200"
+          >
+            关闭
+          </button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
