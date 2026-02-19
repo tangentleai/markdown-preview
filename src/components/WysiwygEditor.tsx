@@ -424,6 +424,36 @@ const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch):
       block.replaceWith(heading)
       return heading
     }
+    case 'heading-2': {
+      const heading = document.createElement('h2')
+      heading.append(document.createElement('br'))
+      block.replaceWith(heading)
+      return heading
+    }
+    case 'heading-3': {
+      const heading = document.createElement('h3')
+      heading.append(document.createElement('br'))
+      block.replaceWith(heading)
+      return heading
+    }
+    case 'heading-4': {
+      const heading = document.createElement('h4')
+      heading.append(document.createElement('br'))
+      block.replaceWith(heading)
+      return heading
+    }
+    case 'heading-5': {
+      const heading = document.createElement('h5')
+      heading.append(document.createElement('br'))
+      block.replaceWith(heading)
+      return heading
+    }
+    case 'heading-6': {
+      const heading = document.createElement('h6')
+      heading.append(document.createElement('br'))
+      block.replaceWith(heading)
+      return heading
+    }
     case 'unordered-list': {
       const ul = document.createElement('ul')
       const li = document.createElement('li')
@@ -475,6 +505,50 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [replaceQuery, setReplaceQuery] = useState('')
   const [activeFindIndex, setActiveFindIndex] = useState(-1)
   const [findResultCount, setFindResultCount] = useState(0)
+
+  const looksLikeMarkdown = (value: string): boolean => {
+    if (!value || !/\S/.test(value)) {
+      return false
+    }
+    const lines = value.split('\n')
+    if (
+      lines.some(
+        (l) =>
+          /^(#{1,6})\s+/.test(l) ||
+          /^>\s?/.test(l) ||
+          /^([-*+])\s+/.test(l) ||
+          /^\d+\.\s+/.test(l) ||
+          /^```/.test(l)
+      )
+    ) {
+      return true
+    }
+    if (/\*\*[^*]+\*\*/.test(value) || /\*[^*]+\*/.test(value) || /`[^`]+`/.test(value)) {
+      return true
+    }
+    if (/\[[^\]]+\]\([^)]+\)/.test(value) || /!\[[^\]]*\]\([^)]+\)/.test(value)) {
+      return true
+    }
+    return false
+  }
+
+  const insertNodesAfterBlockOrAppend = (editor: HTMLElement, block: HTMLElement | null, nodes: Node[]): void => {
+    if (block && block.parentElement) {
+      const parent = block.parentElement
+      const reference = block.nextSibling
+      nodes.forEach((node) => {
+        parent.insertBefore(node, reference)
+      })
+      const last = nodes[nodes.length - 1]
+      setCaretAfterNode(last)
+      return
+    }
+    nodes.forEach((node) => {
+      editor.append(node)
+    })
+    const last = nodes[nodes.length - 1]
+    setCaretAfterNode(last)
+  }
 
   useEffect(() => {
     if (!editorRef.current) {
@@ -986,6 +1060,43 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     setMarkdown(afterMarkdown)
   }
 
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!editorRef.current || !event.clipboardData) {
+      return
+    }
+    const text = event.clipboardData.getData('text/plain') ?? ''
+    if (!text || !looksLikeMarkdown(text)) {
+      return
+    }
+    event.preventDefault()
+    try {
+      const html = markdownToEditableHtml(text)
+      const template = document.createElement('template')
+      template.innerHTML = html
+      const nodes = Array.from(template.content.childNodes)
+      const selection = window.getSelection()
+      const block =
+        selection && selection.isCollapsed && selection.rangeCount > 0
+          ? getClosestBlockElement(selection.anchorNode, editorRef.current)
+          : null
+      insertNodesAfterBlockOrAppend(editorRef.current, block, nodes)
+      const nextMarkdown = htmlToMarkdown(editorRef.current)
+      lastSyncedMarkdownRef.current = nextMarkdown
+      if (nextMarkdown !== markdown) {
+        setMarkdown(nextMarkdown)
+      }
+    } catch (error) {
+      console.warn('Markdown 粘贴解析失败，降级为纯文本插入', error)
+      const fallback = document.createTextNode(text)
+      insertNodesAfterBlockOrAppend(editorRef.current, null, [fallback])
+      const nextMarkdown = htmlToMarkdown(editorRef.current)
+      lastSyncedMarkdownRef.current = nextMarkdown
+      if (nextMarkdown !== markdown) {
+        setMarkdown(nextMarkdown)
+      }
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold mb-3 text-gray-800">WYSIWYG 编辑</h2>
@@ -1048,6 +1159,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onCompositionStart={() => {

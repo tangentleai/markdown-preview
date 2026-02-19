@@ -130,6 +130,11 @@ describe('App component', () => {
 
   it.each([
     { trigger: '#', key: ' ', selector: 'h1' },
+    { trigger: '##', key: ' ', selector: 'h2' },
+    { trigger: '###', key: ' ', selector: 'h3' },
+    { trigger: '####', key: ' ', selector: 'h4' },
+    { trigger: '#####', key: ' ', selector: 'h5' },
+    { trigger: '######', key: ' ', selector: 'h6' },
     { trigger: '-', key: ' ', selector: 'ul li' },
     { trigger: '1.', key: ' ', selector: 'ol li' },
     { trigger: '>', key: ' ', selector: 'blockquote p' },
@@ -150,6 +155,78 @@ describe('App component', () => {
 
     const selection = window.getSelection()
     expect(selection?.anchorNode && transformed?.contains(selection.anchorNode)).toBeTruthy()
+  })
+
+  it('should not retrigger transform when typing space inside empty H2 after \"## \"', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>##</p>'
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+    fireEvent.keyDown(editor, { key: ' ' })
+
+    const h2 = editor.querySelector('h2') as HTMLElement
+    expect(h2).toBeTruthy()
+    setCaretAtStart(h2)
+    fireEvent.keyDown(editor, { key: ' ' })
+
+    expect(editor.querySelector('h2')).toBeTruthy()
+    expect(editor.querySelector('ul')).toBeNull()
+  })
+
+  it('should allow normal paragraph after H2 heading created by \"## \"', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<h2>二级标题</h2><p>后续普通文本</p>'
+    fireEvent.input(editor)
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('## 二级标题')
+    expect(textarea.value).toContain('后续普通文本')
+  })
+
+  it('should convert pasted markdown into formatted rich content and sync markdown', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p><br></p>'
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtStart(paragraph)
+
+    const md =
+      '### 粘贴标题\n\n段落 **加粗** *斜体*\n- 项目1\n1. 项目A\n[链接](https://example.com)\n![图像](https://example.com/img.png)'
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => (type === 'text/plain' ? md : '')
+      } as unknown as DataTransfer
+    })
+
+    expect(editor.querySelector('h3')?.textContent).toContain('粘贴标题')
+    expect(editor.querySelector('strong')?.textContent).toBe('加粗')
+    expect(editor.querySelector('em')?.textContent).toBe('斜体')
+    expect(editor.querySelector('ul li')).toBeTruthy()
+    expect(editor.querySelector('ol li')).toBeTruthy()
+    const anchor = editor.querySelector('a') as HTMLAnchorElement
+    expect(anchor?.getAttribute('href')).toBe('https://example.com')
+    const img = editor.querySelector('img') as HTMLImageElement
+    expect(img?.getAttribute('src')).toBe('https://example.com/img.png')
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('### 粘贴标题')
+    expect(textarea.value).toContain('**加粗**')
+    expect(textarea.value).toContain('*斜体*')
+    expect(textarea.value).toContain('- 项目1')
+    expect(textarea.value).toContain('1. 项目A')
+    expect(textarea.value).toContain('[链接](https://example.com)')
+    expect(textarea.value).toContain('![图像](https://example.com/img.png)')
   })
 
   it('should not trigger block transform when Chinese IME composition is active', () => {

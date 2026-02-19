@@ -1,5 +1,10 @@
 export type BlockInputRuleName =
   | 'heading-1'
+  | 'heading-2'
+  | 'heading-3'
+  | 'heading-4'
+  | 'heading-5'
+  | 'heading-6'
   | 'unordered-list'
   | 'ordered-list'
   | 'blockquote'
@@ -10,9 +15,9 @@ export type BlockInputRuleName =
 
 export interface BlockInputRuleMatch {
   rule: BlockInputRuleName
-  triggerText: '#' | '-' | '1.' | '>' | '```'
+  triggerText: '#' | '##' | '###' | '####' | '#####' | '######' | '-' | '1.' | '>' | '```'
   triggerKey: ' ' | 'Enter'
-  targetTag: 'H1' | 'UL' | 'OL' | 'BLOCKQUOTE' | 'PRE'
+  targetTag: 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6' | 'UL' | 'OL' | 'BLOCKQUOTE' | 'PRE'
 }
 
 export interface BlockInputRuleTransaction {
@@ -49,6 +54,51 @@ export const matchBlockInputRule = (
       triggerText: '#',
       triggerKey,
       targetTag: 'H1'
+    }
+  }
+
+  if (lineText === '##') {
+    return {
+      rule: 'heading-2',
+      triggerText: '##',
+      triggerKey,
+      targetTag: 'H2'
+    }
+  }
+
+  if (lineText === '###') {
+    return {
+      rule: 'heading-3',
+      triggerText: '###',
+      triggerKey,
+      targetTag: 'H3'
+    }
+  }
+
+  if (lineText === '####') {
+    return {
+      rule: 'heading-4',
+      triggerText: '####',
+      triggerKey,
+      targetTag: 'H4'
+    }
+  }
+
+  if (lineText === '#####') {
+    return {
+      rule: 'heading-5',
+      triggerText: '#####',
+      triggerKey,
+      targetTag: 'H5'
+    }
+  }
+
+  if (lineText === '######') {
+    return {
+      rule: 'heading-6',
+      triggerText: '######',
+      triggerKey,
+      targetTag: 'H6'
     }
   }
 
