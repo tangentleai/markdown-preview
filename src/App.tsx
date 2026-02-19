@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import MarkdownInput from './components/MarkdownInput'
 import MarkdownPreview from './components/MarkdownPreview'
+import WysiwygEditor from './components/WysiwygEditor'
 
 type EditorMode = 'dual-pane' | 'wysiwyg'
 
@@ -116,9 +117,9 @@ Alice -> Bob : 回复
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-gray-600 px-1">
-              当前为 WYSIWYG 模式，文档内容与双栏模式保持同一份 Markdown 数据。
+              当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
             </p>
-            <MarkdownPreview markdown={markdown} />
+            <WysiwygEditor markdown={markdown} setMarkdown={setMarkdown} />
           </div>
         )}
       </main>

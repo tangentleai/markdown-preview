@@ -6,10 +6,12 @@
   - BUNDLE (RUN #1): Task 1.0 mode toggle implementation bundle (GUI start-server-only) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0001__task-1.0__ref-R0__20260219T013847Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #1): Supervisor executed GUI MCP runbook and verified mode round-trip consistency | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0001__task-1.0__ref-R0__20260219T013847Z/run.sh (server started, URL observed, PID check exit=0); MCP playwright assertions for dual->wysiwyg->dual->wysiwyg flow | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0001__task-1.0__ref-R0__20260219T013847Z/outputs/screenshots/01-dual-pane-edited.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0001__task-1.0__ref-R0__20260219T013847Z/outputs/screenshots/02-wysiwyg-view.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0001__task-1.0__ref-R0__20260219T013847Z/outputs/screenshots/03-dual-pane-roundtrip.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0001__task-1.0__ref-R0__20260219T013847Z/outputs/screenshots/04-wysiwyg-roundtrip.png
 
-- [ ] 1.1 完成 WYSIWYG 编辑器内核选型并落地最小可编辑集成 [#R1]
+- [x] 1.1 完成 WYSIWYG 编辑器内核选型并落地最小可编辑集成 [#R1]
   - ACCEPT: 编辑区在单栏中可直接编辑排版结果，具备稳定光标与基础输入能力
   - TEST: SCOPE: GUI
     - 启动本地服务后，在同一编辑区完成输入、选区、删除操作并保持正常渲染
+  - BUNDLE (RUN #2): Task 1.1 native contentEditable kernel MVP bundle (GUI start-server-only) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #2): Supervisor executed GUI MCP runbook and confirmed single-pane editable WYSIWYG behavior with mode round-trip sync | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/run.sh (retry log confirms Local URL http://127.0.0.1:33100/); MCP playwright assertions for input/delete/replace in WYSIWYG editor and sync back to dual-pane textarea | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/outputs/screenshots/01-wysiwyg-before-edit.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/outputs/screenshots/02-wysiwyg-after-edit.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0002__task-1.1__ref-R1__20260219T015420Z/outputs/screenshots/03-dual-pane-after-switch-back.png
 
 - [ ] 1.2 建立 Markdown 导入到文档模型的解析流程 [#R2]
   - ACCEPT: 支持段落、标题、列表、引用、代码块、链接、图片、表格基础导入

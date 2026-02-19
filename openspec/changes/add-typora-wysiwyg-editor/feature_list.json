@@ -24,7 +24,7 @@
         "Run: SCOPE: GUI",
         "Run: - 启动本地服务后，在同一编辑区完成输入、选区、删除操作并保持正常渲染"
       ],
-      "passes": false
+      "passes": true
     },
     "R2": {
       "category": "functional",

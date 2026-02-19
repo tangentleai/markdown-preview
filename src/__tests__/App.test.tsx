@@ -41,4 +41,20 @@ describe('App component', () => {
     const textareaAfterSwitch = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     expect(textareaAfterSwitch.value).toEqual(updatedMarkdown)
   })
+
+  it('should support basic direct editing in WYSIWYG mode', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<h1>内联编辑标题</h1><p>基础输入内容</p>'
+    fireEvent.input(editor)
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('# 内联编辑标题')
+    expect(textarea.value).toContain('基础输入内容')
+  })
 })
