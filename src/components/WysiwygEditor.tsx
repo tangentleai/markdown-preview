@@ -142,6 +142,77 @@ const setCaretAfterNode = (node: Node): void => {
   selection.addRange(range)
 }
 
+const getCaretTextOffsetInBlock = (range: Range, block: HTMLElement): number => {
+  const preCaretRange = range.cloneRange()
+  preCaretRange.selectNodeContents(block)
+  preCaretRange.setEnd(range.startContainer, range.startOffset)
+  return preCaretRange.toString().length
+}
+
+const isBlockTextEmpty = (block: HTMLElement): boolean =>
+  (block.textContent ?? '').replace(/\u00A0/g, ' ').trim().length === 0
+
+const replaceBlockWithParagraph = (block: HTMLElement): HTMLElement => {
+  const paragraph = document.createElement('p')
+  const blockText = (block.textContent ?? '').replace(/\u00A0/g, ' ')
+
+  if (blockText.length > 0) {
+    paragraph.append(document.createTextNode(blockText))
+  } else {
+    paragraph.append(document.createElement('br'))
+  }
+
+  block.replaceWith(paragraph)
+  return paragraph
+}
+
+const exitEmptyListItem = (listItem: HTMLElement): HTMLElement => {
+  const list = listItem.parentElement
+  if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL') || !list.parentElement) {
+    return replaceBlockWithParagraph(listItem)
+  }
+
+  const paragraph = document.createElement('p')
+  paragraph.append(document.createElement('br'))
+
+  const siblings = Array.from(list.children)
+  const listItemIndex = siblings.indexOf(listItem)
+  const trailingItems = listItemIndex >= 0 ? siblings.slice(listItemIndex + 1) : []
+
+  if (trailingItems.length > 0) {
+    const tailList = document.createElement(list.tagName.toLowerCase())
+    trailingItems.forEach((item) => tailList.append(item))
+    list.after(tailList)
+  }
+
+  listItem.remove()
+  list.after(paragraph)
+
+  if (list.children.length === 0) {
+    list.remove()
+  }
+
+  return paragraph
+}
+
+const exitEmptyBlockquote = (blockInQuote: HTMLElement): HTMLElement => {
+  const quote = blockInQuote.closest('blockquote')
+  if (!quote || !quote.parentElement) {
+    return replaceBlockWithParagraph(blockInQuote)
+  }
+
+  const paragraph = document.createElement('p')
+  paragraph.append(document.createElement('br'))
+  blockInQuote.remove()
+  quote.after(paragraph)
+
+  if (quote.textContent?.trim().length === 0 || quote.children.length === 0) {
+    quote.remove()
+  }
+
+  return paragraph
+}
+
 const createInlineElement = (match: InlineStyleRuleMatch): HTMLElement => {
   switch (match.rule) {
     case 'strong': {
@@ -274,6 +345,59 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
       lastSyncedMarkdownRef.current = transaction.beforeMarkdown
       setMarkdown(transaction.beforeMarkdown)
       return
+    }
+
+    if (!event.nativeEvent.isComposing && (event.key === 'Enter' || event.key === 'Backspace')) {
+      const selection = window.getSelection()
+      if (selection && selection.isCollapsed && selection.rangeCount > 0) {
+        const block = getClosestBlockElement(selection.anchorNode, editorRef.current)
+        if (block) {
+          const range = selection.getRangeAt(0)
+          const caretOffset = getCaretTextOffsetInBlock(range, block)
+          const isCaretAtStart = caretOffset === 0
+
+          if (event.key === 'Backspace' && block.tagName.match(/^H[1-6]$/) && isCaretAtStart) {
+            event.preventDefault()
+            const paragraph = replaceBlockWithParagraph(block)
+            setCaretToStart(paragraph)
+
+            const nextMarkdown = htmlToMarkdown(editorRef.current)
+            lastSyncedMarkdownRef.current = nextMarkdown
+            if (nextMarkdown !== markdown) {
+              setMarkdown(nextMarkdown)
+            }
+            return
+          }
+
+          if (event.key === 'Enter' && isBlockTextEmpty(block)) {
+            if (block.tagName === 'LI') {
+              event.preventDefault()
+              const paragraph = exitEmptyListItem(block)
+              setCaretToStart(paragraph)
+
+              const nextMarkdown = htmlToMarkdown(editorRef.current)
+              lastSyncedMarkdownRef.current = nextMarkdown
+              if (nextMarkdown !== markdown) {
+                setMarkdown(nextMarkdown)
+              }
+              return
+            }
+
+            if (block.closest('blockquote')) {
+              event.preventDefault()
+              const paragraph = exitEmptyBlockquote(block)
+              setCaretToStart(paragraph)
+
+              const nextMarkdown = htmlToMarkdown(editorRef.current)
+              lastSyncedMarkdownRef.current = nextMarkdown
+              if (nextMarkdown !== markdown) {
+                setMarkdown(nextMarkdown)
+              }
+              return
+            }
+          }
+        }
+      }
     }
 
     if (!event.nativeEvent.isComposing && ['*', '`', ')'].includes(event.key)) {

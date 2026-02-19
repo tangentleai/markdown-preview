@@ -13,6 +13,16 @@ const setCaretAtEnd = (element: HTMLElement): void => {
   selection?.addRange(range)
 }
 
+const setCaretAtStart = (element: HTMLElement): void => {
+  const textNode = element.firstChild ?? element.appendChild(document.createTextNode(element.textContent ?? ''))
+  const selection = window.getSelection()
+  const range = document.createRange()
+  range.setStart(textNode, 0)
+  range.collapse(true)
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+}
+
 describe('App component', () => {
   it('should render the main application', () => {
     render(<App />)
@@ -152,5 +162,50 @@ describe('App component', () => {
 
     const selection = window.getSelection()
     expect(selection?.anchorNode && editor.contains(selection.anchorNode)).toBeTruthy()
+  })
+
+  it('should exit empty list item when pressing Enter', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<ul><li><br></li></ul>'
+
+    const listItem = editor.querySelector('li') as HTMLElement
+    setCaretAtStart(listItem)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.querySelector('ul')).toBeNull()
+    expect(editor.querySelector('p')).toBeTruthy()
+  })
+
+  it('should exit empty blockquote when pressing Enter', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<blockquote><p><br></p></blockquote>'
+
+    const quoteParagraph = editor.querySelector('blockquote p') as HTMLElement
+    setCaretAtStart(quoteParagraph)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.querySelector('blockquote')).toBeNull()
+    expect(editor.querySelector('p')).toBeTruthy()
+  })
+
+  it('should convert heading to paragraph when pressing Backspace at start', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<h2>标题文本</h2>'
+
+    const heading = editor.querySelector('h2') as HTMLElement
+    setCaretAtStart(heading)
+    fireEvent.keyDown(editor, { key: 'Backspace' })
+
+    expect(editor.querySelector('h2')).toBeNull()
+    expect(editor.querySelector('p')?.textContent).toBe('标题文本')
   })
 })

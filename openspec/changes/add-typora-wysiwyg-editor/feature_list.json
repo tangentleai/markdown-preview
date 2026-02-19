@@ -84,7 +84,7 @@
         "Run: SCOPE: GUI",
         "Run: - 执行交互回归用例，校验行为与 DoD 一致"
       ],
-      "passes": false
+      "passes": true
     },
     "R7": {
       "category": "functional",
