@@ -6,6 +6,7 @@ import {
   type BlockInputRuleMatch,
   type BlockInputRuleTransaction
 } from '../utils/wysiwygBlockInputRules'
+import { matchInlineStyleRule, type InlineStyleRuleMatch } from '../utils/wysiwygInlineStyleRules'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -128,6 +129,50 @@ const setCaretToStart = (target: HTMLElement): void => {
   selection.addRange(range)
 }
 
+const setCaretAfterNode = (node: Node): void => {
+  const selection = window.getSelection()
+  if (!selection) {
+    return
+  }
+
+  const range = document.createRange()
+  range.setStartAfter(node)
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+const createInlineElement = (match: InlineStyleRuleMatch): HTMLElement => {
+  switch (match.rule) {
+    case 'strong': {
+      const strong = document.createElement('strong')
+      strong.textContent = match.content
+      return strong
+    }
+    case 'em': {
+      const em = document.createElement('em')
+      em.textContent = match.content
+      return em
+    }
+    case 'code': {
+      const code = document.createElement('code')
+      code.textContent = match.content
+      return code
+    }
+    case 'link': {
+      const anchor = document.createElement('a')
+      anchor.textContent = match.content
+      anchor.setAttribute('href', match.href ?? '#')
+      return anchor
+    }
+    default: {
+      const fallback = document.createElement('span')
+      fallback.textContent = match.content
+      return fallback
+    }
+  }
+}
+
 const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch): HTMLElement => {
   switch (ruleMatch.rule) {
     case 'heading-1': {
@@ -229,6 +274,52 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
       lastSyncedMarkdownRef.current = transaction.beforeMarkdown
       setMarkdown(transaction.beforeMarkdown)
       return
+    }
+
+    if (!event.nativeEvent.isComposing && ['*', '`', ')'].includes(event.key)) {
+      const selection = window.getSelection()
+      if (selection && selection.isCollapsed && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0)
+        const anchorNode = range.startContainer
+
+        if (anchorNode.nodeType === Node.TEXT_NODE) {
+          const textNode = anchorNode as Text
+          const originalText = textNode.textContent ?? ''
+          const offset = range.startOffset
+          const candidateText = `${originalText.slice(0, offset)}${event.key}`
+          const inlineMatch = matchInlineStyleRule(candidateText)
+          const block = getClosestBlockElement(anchorNode, editorRef.current)
+
+          if (inlineMatch && block && inlineMatch.end === candidateText.length) {
+            event.preventDefault()
+
+            const beforeText = candidateText.slice(0, inlineMatch.start)
+            const afterText = originalText.slice(offset)
+            const fragment = document.createDocumentFragment()
+
+            if (beforeText) {
+              fragment.append(document.createTextNode(beforeText))
+            }
+
+            const styledElement = createInlineElement(inlineMatch)
+            fragment.append(styledElement)
+
+            if (afterText) {
+              fragment.append(document.createTextNode(afterText))
+            }
+
+            textNode.replaceWith(fragment)
+            setCaretAfterNode(styledElement)
+
+            const nextMarkdown = htmlToMarkdown(editorRef.current)
+            lastSyncedMarkdownRef.current = nextMarkdown
+            if (nextMarkdown !== markdown) {
+              setMarkdown(nextMarkdown)
+            }
+            return
+          }
+        }
+      }
     }
 
     if (event.nativeEvent.isComposing || (![' ', 'Enter'].includes(event.key) && event.key !== 'Spacebar')) {

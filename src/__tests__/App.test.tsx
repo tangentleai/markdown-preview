@@ -110,4 +110,47 @@ describe('App component', () => {
 
     expect(editor.querySelector('p')?.textContent).toBe('#')
   })
+
+  it.each([
+    {
+      triggerText: '**bold*',
+      key: '*',
+      selector: 'strong',
+      expectedText: 'bold'
+    },
+    {
+      triggerText: '*italic',
+      key: '*',
+      selector: 'em',
+      expectedText: 'italic'
+    },
+    {
+      triggerText: '`code',
+      key: '`',
+      selector: 'code',
+      expectedText: 'code'
+    },
+    {
+      triggerText: '[OpenAI](https://openai.com',
+      key: ')',
+      selector: 'a',
+      expectedText: 'OpenAI'
+    }
+  ])('should apply inline style rule for $selector when closing marker is typed', ({ triggerText, key, selector, expectedText }) => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = `<p>${triggerText}</p>`
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+    fireEvent.keyDown(editor, { key })
+
+    const styledNode = editor.querySelector(selector)
+    expect(styledNode?.textContent).toBe(expectedText)
+
+    const selection = window.getSelection()
+    expect(selection?.anchorNode && editor.contains(selection.anchorNode)).toBeTruthy()
+  })
 })

@@ -72,7 +72,7 @@
         "Run: SCOPE: MIXED",
         "Run: - CLI 校验节点标记变化；GUI 校验样式显示与光标行为"
       ],
-      "passes": false
+      "passes": true
     },
     "R6": {
       "category": "functional",
