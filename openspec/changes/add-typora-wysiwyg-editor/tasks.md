@@ -28,10 +28,12 @@
   - EVIDENCE (RUN #4): Supervisor executed CLI serialization bundle and verified utf-8 markdown serialization + round-trip checks | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z/run.sh (exit=0) | RESULT: PASS | CLI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z/logs/supervisor_run.log, auto_test_openspec/add-typora-wysiwyg-editor/run-0004__task-1.3__ref-R3__20260219T021520Z/outputs/test-output.txt
 
 ## 2. 输入规则与可逆编辑
-- [ ] 2.1 实现块级输入规则（`#`、`-`、`1.`、`>`、代码块） [#R4]
+- [x] 2.1 实现块级输入规则（`#`、`-`、`1.`、`>`、代码块） [#R4]
   - ACCEPT: 行首触发后自动结构化，撤销一步可回到触发前状态
   - TEST: SCOPE: MIXED
     - CLI 校验输入规则事务日志；GUI 校验光标位置与结构转换行为
+  - EVIDENCE (RUN #5): Supervisor executed mixed validation (CLI + GUI MCP) and verified block input transforms with one-step undo restoration | VALIDATED: bash auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/tests/test_cli_block_input_rules.sh (exit=0); bash auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/run.sh (server started, URL observed) + MCP playwright assertions for #,-,1.,>,``` transforms and single undo | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/outputs/screenshots/01-before-transform-marker.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/outputs/screenshots/02-transformed-block-samples.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/outputs/screenshots/03-undo-restored-marker.png, auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/outputs/screenshots/04-dual-pane-sync.png | CLI_EVIDENCE: auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z/logs/supervisor_cli.log
+  - BUNDLE (RUN #5): Task 2.1 block-level input rules bundle (MIXED start-server-only + CLI transaction checks) | VALIDATION_BUNDLE: auto_test_openspec/add-typora-wysiwyg-editor/run-0005__task-2.1__ref-R4__20260219T022608Z | HOW_TO_RUN: run.sh/run.bat
 
 - [ ] 2.2 实现行内样式规则（加粗、斜体、行内代码、链接） [#R5]
   - ACCEPT: 闭合触发后渲染正确，编辑光标在样式边界移动不异常

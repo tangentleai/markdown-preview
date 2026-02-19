@@ -2,6 +2,17 @@ import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import App from '../App'
 
+const setCaretAtEnd = (element: HTMLElement): void => {
+  const textNode = element.firstChild ?? element.appendChild(document.createTextNode(element.textContent ?? ''))
+  const offset = textNode.textContent?.length ?? 0
+  const selection = window.getSelection()
+  const range = document.createRange()
+  range.setStart(textNode, offset)
+  range.collapse(true)
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+}
+
 describe('App component', () => {
   it('should render the main application', () => {
     render(<App />)
@@ -56,5 +67,47 @@ describe('App component', () => {
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     expect(textarea.value).toContain('# 内联编辑标题')
     expect(textarea.value).toContain('基础输入内容')
+  })
+
+  it.each([
+    { trigger: '#', key: ' ', selector: 'h1' },
+    { trigger: '-', key: ' ', selector: 'ul li' },
+    { trigger: '1.', key: ' ', selector: 'ol li' },
+    { trigger: '>', key: ' ', selector: 'blockquote p' },
+    { trigger: '```', key: 'Enter', selector: 'pre code' }
+  ])('should apply block input rule for %s and keep cursor editable', ({ trigger, key, selector }) => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = `<p>${trigger}</p>`
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+    fireEvent.keyDown(editor, { key })
+
+    const transformed = editor.querySelector(selector)
+    expect(transformed).toBeTruthy()
+
+    const selection = window.getSelection()
+    expect(selection?.anchorNode && transformed?.contains(selection.anchorNode)).toBeTruthy()
+  })
+
+  it('should undo one block transform back to pre-transform text state', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>#</p>'
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+    fireEvent.keyDown(editor, { key: ' ' })
+
+    expect(editor.querySelector('h1')).toBeTruthy()
+
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
+
+    expect(editor.querySelector('p')?.textContent).toBe('#')
   })
 })

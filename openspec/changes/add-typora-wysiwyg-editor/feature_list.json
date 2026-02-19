@@ -60,7 +60,7 @@
         "Run: SCOPE: MIXED",
         "Run: - CLI 校验输入规则事务日志；GUI 校验光标位置与结构转换行为"
       ],
-      "passes": false
+      "passes": true
     },
     "R5": {
       "category": "functional",

@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from 'react'
 import { markdownToEditableHtml } from '../utils/markdownDocumentModel'
+import {
+  BlockInputRuleUndoStack,
+  canTriggerBlockInputRule,
+  type BlockInputRuleMatch,
+  type BlockInputRuleTransaction
+} from '../utils/wysiwygBlockInputRules'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -85,9 +91,92 @@ const htmlToMarkdown = (root: HTMLElement): string => {
   return `${blocks.join('\n\n')}\n`
 }
 
+const getClosestBlockElement = (node: Node | null, root: HTMLElement): HTMLElement | null => {
+  if (!node) {
+    return null
+  }
+
+  const startElement = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement
+  if (!startElement) {
+    return null
+  }
+
+  const block = startElement.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, pre') as HTMLElement | null
+  if (!block || !root.contains(block)) {
+    return null
+  }
+
+  return block
+}
+
+const setCaretToStart = (target: HTMLElement): void => {
+  const selection = window.getSelection()
+  if (!selection) {
+    return
+  }
+
+  const range = document.createRange()
+
+  if (target.firstChild && target.firstChild.nodeType === Node.TEXT_NODE) {
+    range.setStart(target.firstChild, 0)
+  } else {
+    range.setStart(target, 0)
+  }
+
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch): HTMLElement => {
+  switch (ruleMatch.rule) {
+    case 'heading-1': {
+      const heading = document.createElement('h1')
+      heading.append(document.createElement('br'))
+      block.replaceWith(heading)
+      return heading
+    }
+    case 'unordered-list': {
+      const ul = document.createElement('ul')
+      const li = document.createElement('li')
+      li.append(document.createElement('br'))
+      ul.append(li)
+      block.replaceWith(ul)
+      return li
+    }
+    case 'ordered-list': {
+      const ol = document.createElement('ol')
+      const li = document.createElement('li')
+      li.append(document.createElement('br'))
+      ol.append(li)
+      block.replaceWith(ol)
+      return li
+    }
+    case 'blockquote': {
+      const quote = document.createElement('blockquote')
+      const paragraph = document.createElement('p')
+      paragraph.append(document.createElement('br'))
+      quote.append(paragraph)
+      block.replaceWith(quote)
+      return paragraph
+    }
+    case 'code-block': {
+      const pre = document.createElement('pre')
+      const code = document.createElement('code')
+      code.append(document.createElement('br'))
+      pre.append(code)
+      block.replaceWith(pre)
+      return code
+    }
+    default:
+      return block
+  }
+}
+
 const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) => {
   const editorRef = useRef<HTMLDivElement>(null)
   const lastSyncedMarkdownRef = useRef<string>('')
+  const blockRuleUndoRef = useRef(new BlockInputRuleUndoStack())
 
   useEffect(() => {
     if (!editorRef.current) {
@@ -115,6 +204,85 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
     }
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!editorRef.current) {
+      return
+    }
+
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      const transaction = blockRuleUndoRef.current.pop()
+
+      if (!transaction) {
+        return
+      }
+
+      event.preventDefault()
+      editorRef.current.innerHTML = markdownToEditableHtml(transaction.beforeMarkdown)
+      const restoreTarget =
+        (editorRef.current.firstElementChild as HTMLElement | null) ??
+        editorRef.current.appendChild(document.createElement('p'))
+      if (!restoreTarget.firstChild) {
+        restoreTarget.append(document.createTextNode(transaction.triggerText))
+      }
+      setCaretToStart(restoreTarget)
+
+      lastSyncedMarkdownRef.current = transaction.beforeMarkdown
+      setMarkdown(transaction.beforeMarkdown)
+      return
+    }
+
+    if (event.nativeEvent.isComposing || (![' ', 'Enter'].includes(event.key) && event.key !== 'Spacebar')) {
+      return
+    }
+
+    const key = event.key === 'Spacebar' ? ' ' : event.key
+    const selection = window.getSelection()
+    if (!selection || !selection.isCollapsed) {
+      return
+    }
+
+    const block = getClosestBlockElement(selection.anchorNode, editorRef.current)
+    if (!block) {
+      return
+    }
+
+    const rawLineText = (block.textContent ?? '').replace(/\u00A0/g, ' ')
+    const lineText = rawLineText.trim()
+    const range = selection.getRangeAt(0)
+    const isCaretAtEnd = range.endOffset === (selection.anchorNode?.textContent?.length ?? range.endOffset)
+
+    if (!isCaretAtEnd || rawLineText !== lineText) {
+      return
+    }
+
+    const match = canTriggerBlockInputRule(lineText, key)
+    if (!match) {
+      return
+    }
+
+    event.preventDefault()
+
+    const beforeMarkdown = htmlToMarkdown(editorRef.current)
+    const transformedEditableTarget = replaceBlockByRule(block, match)
+    setCaretToStart(transformedEditableTarget)
+    const afterMarkdown = htmlToMarkdown(editorRef.current)
+
+    const transaction: BlockInputRuleTransaction = {
+      rule: match.rule,
+      triggerText: match.triggerText,
+      triggerKey: match.triggerKey,
+      beforeMarkdown,
+      afterMarkdown,
+      beforeCursorOffset: rawLineText.length,
+      afterCursorOffset: 0,
+      createdAt: new Date().toISOString()
+    }
+
+    blockRuleUndoRef.current.push(transaction)
+    lastSyncedMarkdownRef.current = afterMarkdown
+    setMarkdown(afterMarkdown)
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold mb-3 text-gray-800">WYSIWYG 编辑</h2>
@@ -124,6 +292,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onKeyDown={handleKeyDown}
         className="markdown-preview min-h-[600px] max-h-[600px] overflow-auto rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label="WYSIWYG 编辑区"
         role="textbox"
