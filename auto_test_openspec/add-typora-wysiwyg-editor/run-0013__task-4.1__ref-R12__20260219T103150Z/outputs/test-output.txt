@@ -1,0 +1,9 @@
+[CLI] Running task 4.1 DoD regression suite (round-trip + core interactions)
+DoD Regression Report (Task 4.1 / R12)
+Jest exit code: 0
+Total scenarios: 10
+Passed: 10
+Failed: 0
+Pass rate: 100.00%
+
+Failure details: none

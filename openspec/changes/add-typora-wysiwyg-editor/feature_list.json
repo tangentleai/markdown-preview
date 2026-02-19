@@ -156,7 +156,7 @@
         "Run: SCOPE: CLI",
         "Run: - 运行回归脚本，输出通过率与失败明细供后续验收使用"
       ],
-      "passes": false
+      "passes": true
     }
   }
 }
