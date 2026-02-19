@@ -295,4 +295,40 @@ describe('App component', () => {
     fireEvent.keyDown(editor, { key: 'z', ctrlKey: true, shiftKey: true })
     expect(editor.querySelector('p')?.textContent).toBe('标题文本')
   })
+
+  it('should insert dropped local image as markdown reference and render inline in WYSIWYG editor', () => {
+    const originalCreateObjectURL = URL.createObjectURL
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: jest.fn(() => 'blob:mock-local-image')
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    const imageFile = new File(['binary-image-data'], 'local image.png', { type: 'image/png' })
+
+    fireEvent.dragOver(editor, {
+      dataTransfer: { files: [imageFile] }
+    })
+    fireEvent.drop(editor, {
+      dataTransfer: { files: [imageFile] }
+    })
+
+    const insertedImage = editor.querySelector('img') as HTMLImageElement
+    expect(insertedImage).toBeTruthy()
+    expect(insertedImage.getAttribute('src')).toBe('blob:mock-local-image')
+    expect(insertedImage.getAttribute('data-markdown-src')).toBe('local%20image.png')
+
+    fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
+    const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
+    expect(textarea.value).toContain('![local image](local%20image.png)')
+
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: originalCreateObjectURL
+    })
+  })
 })

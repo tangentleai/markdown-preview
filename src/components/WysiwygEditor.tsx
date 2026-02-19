@@ -14,6 +14,20 @@ interface WysiwygEditorProps {
   setMarkdown: (value: string) => void
 }
 
+const escapeMarkdownAltText = (value: string): string => value.replaceAll('\\', '\\\\').replaceAll(']', '\\]')
+
+const toMarkdownImageReference = (fileName: string): string => encodeURI(fileName).replaceAll('#', '%23')
+
+const toImageAltText = (fileName: string): string => {
+  const normalized = fileName.trim()
+  const extensionIndex = normalized.lastIndexOf('.')
+  if (extensionIndex <= 0) {
+    return normalized || 'image'
+  }
+
+  return normalized.slice(0, extensionIndex)
+}
+
 const nodeToMarkdown = (node: ChildNode): string => {
   if (node.nodeType === Node.TEXT_NODE) {
     return (node.textContent ?? '').replace(/\u00A0/g, ' ')
@@ -40,6 +54,15 @@ const nodeToMarkdown = (node: ChildNode): string => {
     case 'A': {
       const href = element.getAttribute('href') ?? '#'
       return `[${textFromChildren()}](${href})`
+    }
+    case 'IMG': {
+      const alt = element.getAttribute('alt') ?? ''
+      const src = element.getAttribute('data-markdown-src') ?? element.getAttribute('src') ?? ''
+      if (!src) {
+        return ''
+      }
+
+      return `![${escapeMarkdownAltText(alt)}](${src})`
     }
     default:
       return textFromChildren()
@@ -141,6 +164,29 @@ const setCaretAfterNode = (node: Node): void => {
   range.collapse(true)
   selection.removeAllRanges()
   selection.addRange(range)
+}
+
+const isSelectionInsideEditor = (selection: Selection, editor: HTMLElement): boolean => {
+  const anchorNode = selection.anchorNode
+  if (!anchorNode) {
+    return false
+  }
+
+  return editor.contains(anchorNode)
+}
+
+const insertNodeAtSelectionOrAppend = (editor: HTMLElement, node: Node): void => {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0 || !isSelectionInsideEditor(selection, editor)) {
+    editor.append(node)
+    setCaretAfterNode(node)
+    return
+  }
+
+  const range = selection.getRangeAt(0)
+  range.deleteContents()
+  range.insertNode(node)
+  setCaretAfterNode(node)
 }
 
 const getCaretTextOffsetInBlock = (range: Range, block: HTMLElement): number => {
@@ -319,6 +365,59 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
 
     if (nextMarkdown !== markdown) {
       setMarkdown(nextMarkdown)
+    }
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!editorRef.current || !event.dataTransfer) {
+      return
+    }
+
+    const droppedFiles = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith('image/'))
+    if (droppedFiles.length === 0) {
+      return
+    }
+
+    event.preventDefault()
+    const editor = editorRef.current
+    const firstBlock = editor.firstElementChild as HTMLElement | null
+    const shouldReplaceEmptyParagraph =
+      editor.children.length === 1 && firstBlock?.tagName === 'P' && (firstBlock.textContent ?? '').trim().length === 0
+
+    if (shouldReplaceEmptyParagraph && firstBlock) {
+      firstBlock.remove()
+    }
+
+    let insertedImage: HTMLImageElement | null = null
+
+    droppedFiles.forEach((file) => {
+      const markdownSrc = toMarkdownImageReference(file.name)
+      const image = document.createElement('img')
+      image.setAttribute('src', URL.createObjectURL(file))
+      image.setAttribute('alt', toImageAltText(file.name))
+      image.setAttribute('data-markdown-src', markdownSrc)
+
+      const paragraph = document.createElement('p')
+      paragraph.append(image)
+      insertNodeAtSelectionOrAppend(editor, paragraph)
+      insertedImage = image
+    })
+
+    if (insertedImage) {
+      const nextMarkdown = htmlToMarkdown(editor)
+      lastSyncedMarkdownRef.current = nextMarkdown
+      if (nextMarkdown !== markdown) {
+        setMarkdown(nextMarkdown)
+      }
     }
   }
 
@@ -589,6 +688,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({ markdown, setMarkdown }) 
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         onCompositionStart={() => {
           isImeComposingRef.current = true
         }}

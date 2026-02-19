@@ -120,7 +120,7 @@
         "Run: SCOPE: MIXED",
         "Run: - CLI 校验资源路径与引用格式；GUI 校验拖拽插入与渲染结果"
       ],
-      "passes": false
+      "passes": true
     },
     "R10": {
       "category": "functional",

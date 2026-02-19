@@ -1,0 +1,37 @@
+
+> markdown-preview@0.0.0 test
+> jest --runInBand src/__tests__/App.test.tsx --testNamePattern insert dropped local image
+
+(node:45021) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/__tests__/App.test.tsx
+  App component
+    ✓ should insert dropped local image as markdown reference and render inline in WYSIWYG editor (127 ms)
+    ○ skipped should render the main application
+    ○ skipped should display the initial markdown content
+    ○ skipped should render both MarkdownInput and MarkdownPreview components
+    ○ skipped should switch between dual-pane and WYSIWYG modes while preserving markdown content
+    ○ skipped should support basic direct editing in WYSIWYG mode
+    ○ skipped should mark document dirty after edits and save via Ctrl/Cmd+S shortcut
+    ○ skipped should apply block input rule for { trigger: '#', key: ' ', selector: 'h1' } and keep cursor editable
+    ○ skipped should apply block input rule for { trigger: '-', key: ' ', selector: 'ul li' } and keep cursor editable
+    ○ skipped should apply block input rule for { trigger: '1.', key: ' ', selector: 'ol li' } and keep cursor editable
+    ○ skipped should apply block input rule for { trigger: '>', key: ' ', selector: 'blockquote p' } and keep cursor editable
+    ○ skipped should apply block input rule for { trigger: '```', key: 'Enter', selector: 'pre code' } and keep cursor editable
+    ○ skipped should not trigger block transform when Chinese IME composition is active
+    ○ skipped should undo one block transform back to pre-transform text state
+    ○ skipped should redo structural block transform after undo with shortcut
+    ○ skipped should apply inline style rule for strong when closing marker is typed
+    ○ skipped should apply inline style rule for em when closing marker is typed
+    ○ skipped should apply inline style rule for code when closing marker is typed
+    ○ skipped should apply inline style rule for a when closing marker is typed
+    ○ skipped should exit empty list item when pressing Enter
+    ○ skipped should exit empty blockquote when pressing Enter
+    ○ skipped should convert heading to paragraph when pressing Backspace at start
+    ○ skipped should include heading backspace transaction in undo and redo history
+
+Test Suites: 1 passed, 1 total
+Tests:       22 skipped, 1 passed, 23 total
+Snapshots:   0 total
+Time:        1.625 s, estimated 2 s
+Ran all test suites matching /src\/__tests__\/App.test.tsx/i with tests matching "insert dropped local image".
