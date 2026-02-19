@@ -470,6 +470,44 @@ describe('App component', () => {
     })
   })
 
+  it('should render inline math when closing $ is typed', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>$E = mc^2</p>'
+
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtEnd(paragraph)
+    fireEvent.keyDown(editor, { key: '$' })
+
+    const mathInline = editor.querySelector('.math-inline')
+    const katexEl = editor.querySelector('.katex')
+    expect(mathInline).toBeTruthy()
+    expect(katexEl).toBeTruthy()
+  })
+
+  it('should render block math when pasting $$...$$ into WYSIWYG editor', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p><br></p>'
+    const paragraph = editor.querySelector('p') as HTMLElement
+    setCaretAtStart(paragraph)
+
+    const md = '$$\n\\\\int_{-\\\\infty}^{\\\\infty} e^{-x^2} dx = \\\\sqrt{\\\\pi}\n$$'
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => (type === 'text/plain' ? md : '')
+      } as unknown as DataTransfer
+    })
+
+    const mathBlock = editor.querySelector('.math-block')
+    const katexDisplay = editor.querySelector('.katex-display, .katex')
+    expect(mathBlock).toBeTruthy()
+    expect(katexDisplay).toBeTruthy()
+  })
   it('should generate outline from H1-H6 in real time and jump to selected heading', () => {
     render(<App />)
 

@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeKatex from 'rehype-katex'
 import mermaid from 'mermaid'
 import { encode as encodePlantUml } from 'plantuml-encoder'
 import 'highlight.js/styles/github.css'
@@ -100,7 +101,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown }) => {
       <div className="markdown-preview overflow-auto max-h-[600px]">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeHighlight]}
+          rehypePlugins={[rehypeHighlight, rehypeKatex]}
           components={{
             code: renderCode
           }}

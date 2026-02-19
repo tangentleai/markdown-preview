@@ -1,4 +1,4 @@
-export type InlineStyleRuleName = 'strong' | 'em' | 'code' | 'link'
+export type InlineStyleRuleName = 'strong' | 'em' | 'code' | 'link' | 'math'
 
 export interface InlineStyleRuleMatch {
   rule: InlineStyleRuleName
@@ -71,6 +71,19 @@ const matchEmRule = (text: string): InlineStyleRuleMatch | null => {
   }
 }
 
+const matchMathRule = (text: string): InlineStyleRuleMatch | null => {
+  const match = text.match(/(?<!\$)\$([^$\n]+)\$(?!\$)$/)
+  if (!match || match.index === undefined) {
+    return null
+  }
+  return {
+    rule: 'math',
+    start: match.index,
+    end: match.index + match[0].length,
+    content: match[1]
+  }
+}
+
 export const matchInlineStyleRule = (textBeforeCaret: string): InlineStyleRuleMatch | null => {
   if (!textBeforeCaret) {
     return null
@@ -80,6 +93,7 @@ export const matchInlineStyleRule = (textBeforeCaret: string): InlineStyleRuleMa
     matchLinkRule(textBeforeCaret) ??
     matchStrongRule(textBeforeCaret) ??
     matchCodeRule(textBeforeCaret) ??
-    matchEmRule(textBeforeCaret)
+    matchEmRule(textBeforeCaret) ??
+    matchMathRule(textBeforeCaret)
   )
 }

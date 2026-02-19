@@ -8,6 +8,8 @@ import {
   type BlockInputRuleTransaction
 } from '../utils/wysiwygBlockInputRules'
 import { matchInlineStyleRule, type InlineStyleRuleMatch } from '../utils/wysiwygInlineStyleRules'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -66,6 +68,14 @@ const nodeToMarkdown = (node: ChildNode): string => {
 
       return `![${escapeMarkdownAltText(alt)}](${src})`
     }
+    case 'SPAN': {
+      const className = element.getAttribute('class') ?? ''
+      if (className.includes('math-inline')) {
+        const tex = element.getAttribute('data-tex') ?? ''
+        return tex ? `$${tex}$` : textFromChildren()
+      }
+      return textFromChildren()
+    }
     default:
       return textFromChildren()
   }
@@ -77,6 +87,11 @@ const blockToMarkdown = (element: Element): string => {
   if (tagName.match(/^H[1-6]$/)) {
     const level = Number.parseInt(tagName.slice(1), 10)
     return `${'#'.repeat(level)} ${Array.from(element.childNodes).map(nodeToMarkdown).join('').trim()}`
+  }
+
+  if (tagName === 'DIV' && (element.getAttribute('class') ?? '').includes('math-block')) {
+    const tex = element.getAttribute('data-tex') ?? ''
+    return `$$\n${tex}\n$$`
   }
 
   if (tagName === 'UL') {
@@ -408,6 +423,13 @@ const createInlineElement = (match: InlineStyleRuleMatch): HTMLElement => {
       anchor.setAttribute('href', match.href ?? '#')
       return anchor
     }
+    case 'math': {
+      const wrapper = document.createElement('span')
+      wrapper.setAttribute('class', 'math-inline')
+      wrapper.setAttribute('data-tex', match.content)
+      wrapper.innerHTML = katex.renderToString(match.content, { throwOnError: false })
+      return wrapper
+    }
     default: {
       const fallback = document.createElement('span')
       fallback.textContent = match.content
@@ -518,7 +540,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           /^>\s?/.test(l) ||
           /^([-*+])\s+/.test(l) ||
           /^\d+\.\s+/.test(l) ||
-          /^```/.test(l)
+          /^```/.test(l) ||
+          /^\$\$\s*$/.test(l)
       )
     ) {
       return true
@@ -958,7 +981,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
     }
 
-    if (!imeComposingNow && ['*', '`', ')'].includes(event.key)) {
+    if (!imeComposingNow && ['*', '`', ')', '$'].includes(event.key)) {
       const selection = window.getSelection()
       if (selection && selection.isCollapsed && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0)
@@ -1081,6 +1104,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           : null
       insertNodesAfterBlockOrAppend(editorRef.current, block, nodes)
       const nextMarkdown = htmlToMarkdown(editorRef.current)
+      editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
       lastSyncedMarkdownRef.current = nextMarkdown
       if (nextMarkdown !== markdown) {
         setMarkdown(nextMarkdown)
@@ -1090,6 +1114,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const fallback = document.createTextNode(text)
       insertNodesAfterBlockOrAppend(editorRef.current, null, [fallback])
       const nextMarkdown = htmlToMarkdown(editorRef.current)
+      editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
       lastSyncedMarkdownRef.current = nextMarkdown
       if (nextMarkdown !== markdown) {
         setMarkdown(nextMarkdown)

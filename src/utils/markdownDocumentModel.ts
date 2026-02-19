@@ -1,3 +1,5 @@
+import katex from 'katex'
+
 export type InlineNode =
   | { type: 'text'; value: string }
   | { type: 'code'; value: string }
@@ -5,6 +7,7 @@ export type InlineNode =
   | { type: 'em'; children: InlineNode[] }
   | { type: 'link'; href: string; children: InlineNode[] }
   | { type: 'image'; alt: string; src: string }
+  | { type: 'mathInline'; tex: string }
 
 export type BlockNode =
   | { type: 'paragraph'; children: InlineNode[] }
@@ -12,6 +15,7 @@ export type BlockNode =
   | { type: 'list'; ordered: boolean; items: InlineNode[][] }
   | { type: 'quote'; blocks: BlockNode[] }
   | { type: 'codeBlock'; language: string; code: string }
+  | { type: 'mathBlock'; tex: string }
   | { type: 'table'; header: InlineNode[][]; rows: InlineNode[][][] }
 
 export interface DocumentModel {
@@ -26,7 +30,7 @@ const escapeHtml = (value: string): string =>
 
 const parseInline = (value: string): InlineNode[] => {
   const nodes: InlineNode[] = []
-  const pattern = /(!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g
+  const pattern = /(!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|(?<!\$)\$[^$\n]+\$(?!\$))/g
   let lastIndex = 0
 
   for (const match of value.matchAll(pattern)) {
@@ -53,6 +57,8 @@ const parseInline = (value: string): InlineNode[] => {
       nodes.push({ type: 'strong', children: parseInline(token.slice(2, -2)) })
     } else if (token.startsWith('*')) {
       nodes.push({ type: 'em', children: parseInline(token.slice(1, -1)) })
+    } else if (token.startsWith('$') && token.endsWith('$')) {
+      nodes.push({ type: 'mathInline', tex: token.slice(1, -1) })
     }
 
     lastIndex = index + token.length
@@ -93,6 +99,7 @@ const splitTableRow = (line: string): string[] =>
     .map((cell) => cell.trim())
 
 const isFencedCodeStart = (line: string): boolean => /^```/.test(line.trim())
+const isBlockMathDelimiter = (line: string): boolean => /^\$\$\s*$/.test(line.trim())
 
 const isHeading = (line: string): boolean => /^(#{1,6})\s+/.test(line.trim())
 
@@ -132,6 +139,23 @@ const parseMarkdownLines = (lines: string[]): BlockNode[] => {
         type: 'codeBlock',
         language,
         code: codeLines.join('\n').replace(/\n+$/, '')
+      })
+      continue
+    }
+
+    if (isBlockMathDelimiter(trimmed)) {
+      const mathLines: string[] = []
+      index += 1
+      while (index < lines.length && !isBlockMathDelimiter(lines[index].trim())) {
+        mathLines.push(lines[index])
+        index += 1
+      }
+      if (index < lines.length) {
+        index += 1
+      }
+      blocks.push({
+        type: 'mathBlock',
+        tex: mathLines.join('\n').replace(/\n+$/, '')
       })
       continue
     }
@@ -325,6 +349,11 @@ const inlineNodeToHtml = (node: InlineNode): string => {
       return `<a href="${escapeHtml(node.href)}">${node.children.map(inlineNodeToHtml).join('')}</a>`
     case 'image':
       return `<img src="${escapeHtml(node.src)}" alt="${escapeHtml(node.alt)}" />`
+    case 'mathInline': {
+      const tex = node.tex
+      const rendered = katex.renderToString(tex, { throwOnError: false })
+      return `<span class="math-inline" data-tex="${escapeHtml(tex)}">${rendered}</span>`
+    }
     default:
       return ''
   }
@@ -344,6 +373,10 @@ const blockNodeToHtml = (node: BlockNode): string => {
       return `<blockquote>${node.blocks.map(blockNodeToHtml).join('')}</blockquote>`
     case 'codeBlock':
       return `<pre><code>${escapeHtml(node.code)}</code></pre>`
+    case 'mathBlock': {
+      const rendered = katex.renderToString(node.tex, { throwOnError: false, displayMode: true })
+      return `<div class="math-block" data-tex="${escapeHtml(node.tex)}">${rendered}</div>`
+    }
     case 'table': {
       const headerRow = `<tr>${node.header.map((cell) => `<th>${cell.map(inlineNodeToHtml).join('')}</th>`).join('')}</tr>`
       const bodyRows = node.rows

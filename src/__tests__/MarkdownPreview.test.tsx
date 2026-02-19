@@ -26,6 +26,14 @@ describe('MarkdownPreview component', () => {
     expect(codeElement).toBeTruthy()
   })
 
+  it('should render inline and block math formulas via KaTeX', () => {
+    const testMarkdown = '行内公式：$E = mc^2$\n\n$$\n\\\\int_{-\\\\infty}^{\\\\infty} e^{-x^2} dx = \\\\sqrt{\\\\pi}\n$$'
+    render(<MarkdownPreview markdown={testMarkdown} />)
+    const container = screen.getByText(/行内公式/).parentElement as HTMLElement
+    // KaTeX renders elements with class 'katex'
+    expect(document.querySelector('.katex')).toBeTruthy()
+  })
+
   it('should handle empty markdown', () => {
     render(<MarkdownPreview markdown="" />)
     expect(screen.getByText('预览效果')).toBeTruthy()
