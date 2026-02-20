@@ -6,10 +6,13 @@
   - BUNDLE (RUN #1): R1 implementation + GUI MCP runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0001__task-1.1__ref-R1__20260220T145600Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #1): Supervisor executed bundle server and MCP GUI assertions for Ctrl+F/Cmd+F + selection-normalized prefill/indexing | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0001__task-1.1__ref-R1__20260220T145600Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={value:"Alpha beta",counter:"匹配：1/1",editable:true,toolbarHidden:"false",toolbarCount:1} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0001__task-1.1__ref-R1__20260220T145600Z/outputs/screenshots/01-ctrl-f-toolbar.png, auto_test_openspec/update-wysiwyg-search-experience/run-0001__task-1.1__ref-R1__20260220T145600Z/outputs/screenshots/02-cmd-f-toolbar.png, auto_test_openspec/update-wysiwyg-search-experience/run-0001__task-1.1__ref-R1__20260220T145600Z/outputs/screenshots/03-selection-normalized-and-indexed.png
 
-- [ ] 1.2 查找输入框按 Enter 执行“查找下一个”并支持循环回绕 [#R2]
+- [x] 1.2 查找输入框按 Enter 执行“查找下一个”并支持循环回绕 [#R2]
   - ACCEPT: 查找栏聚焦时连续按 Enter，命中序号按下一个推进并在尾部回绕到首个命中。
   - TEST: SCOPE: GUI
     - 生成 GUI MCP runbook，验证连续 Enter 导航与命中计数显示一致。
+  - BUNDLE (RUN #2): R2 implementation + GUI MCP runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0002__task-1.2__ref-R2__20260220T150536Z | HOW_TO_RUN: run.sh/run.bat
+  - BUNDLE (RUN #3): R2 focus-stability fix + GUI MCP runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #3): Supervisor executed retry bundle and validated Enter-driven next navigation with wrap-around from find input focus | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={c0:"匹配：0/2",c1:"匹配：1/2",c2:"匹配：2/2",c3:"匹配：1/2",c4:"匹配：2/2",f0:true,f1:true,f2:true,f3:true} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/01-query-entered.png, auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/02-enter-first.png, auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/03-enter-second.png, auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/04-enter-wrap.png
 
 - [ ] 1.3 支持 Esc 统一关闭查找栏并恢复编辑焦点 [#R3]
   - ACCEPT: 查找输入框、替换输入框、编辑区焦点三种状态下按 Esc 均关闭查找栏，且编辑区可立即继续输入。

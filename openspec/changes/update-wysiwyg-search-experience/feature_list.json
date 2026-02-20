@@ -24,7 +24,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证连续 Enter 导航与命中计数显示一致。"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",
