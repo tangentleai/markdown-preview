@@ -1975,7 +1975,6 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             匹配：
             {findResultCount === 0 ? '0' : `${activeFindIndex + 1}/${findResultCount}`}
           </span>
-          <span className="text-xs text-gray-500">快捷键：Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+E</span>
         </div>
       </div>
       <div
