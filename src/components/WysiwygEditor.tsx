@@ -890,7 +890,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         resizeObserver.observe(editorHost)
         const updateHeight = () => {
           const contentHeight = editor.getContentHeight()
-          editorHost.style.height = `${Math.max(160, contentHeight)}px`
+          editorHost.style.height = `${contentHeight}px`
           editor.layout()
         }
         updateHeight()
