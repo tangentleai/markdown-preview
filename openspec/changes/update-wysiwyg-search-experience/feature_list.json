@@ -72,7 +72,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证无匹配提示与禁用态一致性。"
       ],
-      "passes": false
+      "passes": true
     },
     "R7": {
       "category": "functional",

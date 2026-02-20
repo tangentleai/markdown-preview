@@ -40,10 +40,12 @@
   - BUNDLE (RUN #9): R5 natural-layout viewport visibility minimal-scroll + dual-layer unique active highlight GUI runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0009__task-2.2__ref-R5__20260220T163508Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #9): Supervisor executed retry bundle and verified minimal-scroll under natural expansion layout using page-level viewport metric with correct dual-layer highlight state | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0009__task-2.2__ref-R5__20260220T163508Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={yStart:0,c0:"匹配：0/4",r1:{c:"匹配：1/4",y:0},r2:{c:"匹配：2/4",y:0},r3:{c:"匹配：3/4",y:4460.5},h:{allCount:4,activeCount:1,activeState:"active",nonActiveAll:true}} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0009__task-2.2__ref-R5__20260220T163508Z/outputs/screenshots/00-counter-initial-0of4.png, auto_test_openspec/update-wysiwyg-search-experience/run-0009__task-2.2__ref-R5__20260220T163508Z/outputs/screenshots/01-visible-hit-no-page-scroll.png, auto_test_openspec/update-wysiwyg-search-experience/run-0009__task-2.2__ref-R5__20260220T163508Z/outputs/screenshots/02-offscreen-hit-page-scroll.png, auto_test_openspec/update-wysiwyg-search-experience/run-0009__task-2.2__ref-R5__20260220T163508Z/outputs/screenshots/03-dual-layer-highlight-unique-active.png
 
-- [ ] 2.3 无匹配时统一展示 0/N 并禁用不可执行操作 [#R6]
+- [x] 2.3 无匹配时统一展示 0/N 并禁用不可执行操作 [#R6]
   - ACCEPT: 无匹配时显示 `0/N`，查找上一个、查找下一个、替换当前、替换全部按钮均禁用。
   - TEST: SCOPE: GUI
     - 生成 GUI MCP runbook，验证无匹配提示与禁用态一致性。
+  - BUNDLE (RUN #10): R6 no-match counter unified to 0/N + disable previous/next/replace-current/replace-all + GUI MCP runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #10): Supervisor executed bundle and verified no-match state renders 0/N while previous/next/replace-current/replace-all are disabled | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={counter:"匹配：0/N",bPrev:true,bNext:true,bRc:true,bRa:true} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z/outputs/screenshots/01-counter-0-over-n.png, auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z/outputs/screenshots/02-all-actions-disabled-no-match.png
 
 ## 3. 匹配策略与替换行为
 - [ ] 3.1 增加区分大小写、整词匹配、正则模式选项并实现联动规则 [#R7]
