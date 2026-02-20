@@ -35,7 +35,7 @@ const value = 1
     const markdown = `# 标题\n\n- 项目一\n- 项目二\n\n\`\`\`\ncode\n\`\`\`\n\n普通段落`
 
     expect(markdownToEditableHtml(markdown)).toEqual(
-      '<h1>标题</h1><ul><li>项目一</li><li>项目二</li></ul><pre><code>code</code></pre><p>普通段落</p>'
+      '<h1>标题</h1><ul><li>项目一</li><li>项目二</li></ul><div class="wysiwyg-code-block" data-code-block="true" data-language="" contenteditable="false"><pre class="wysiwyg-code-fallback"><code>code</code></pre></div><p>普通段落</p>'
     )
   })
 

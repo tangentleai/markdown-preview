@@ -51,6 +51,32 @@ code {
   @apply bg-transparent text-gray-100;
 }
 
+.markdown-preview .wysiwyg-code-block {
+  @apply rounded border border-slate-200;
+  background-color: #f8f9fa;
+  color: #1f2937;
+  overflow: hidden;
+}
+
+.markdown-preview .wysiwyg-code-block pre {
+  background-color: transparent;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+}
+
+.markdown-preview .wysiwyg-code-block .wysiwyg-code-fallback code {
+  @apply bg-transparent text-gray-700;
+}
+
+.markdown-preview .wysiwyg-code-block.wysiwyg-code-block-mounted .wysiwyg-code-fallback {
+  display: none;
+}
+
+.markdown-preview .wysiwyg-monaco-host {
+  width: 100%;
+}
+
 .markdown-preview table {
   @apply w-full border-collapse border border-gray-300;
 }

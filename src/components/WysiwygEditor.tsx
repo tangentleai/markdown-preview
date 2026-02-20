@@ -12,12 +12,64 @@ import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import mermaid from 'mermaid'
 import { encode as encodePlantUml } from 'plantuml-encoder'
+import 'monaco-editor/min/vs/editor/editor.main.css'
 
 interface WysiwygEditorProps {
   markdown: string
   setMarkdown: (value: string) => void
   jumpToHeadingIndex?: number
   jumpRequestNonce?: number
+}
+
+type MonacoApi = typeof import('monaco-editor')
+
+let monacoEnvironmentReady = false
+let monacoLoadPromise: Promise<MonacoApi> | null = null
+
+const ensureMonacoEnvironment = () => {
+  if (monacoEnvironmentReady || typeof window === 'undefined') {
+    return
+  }
+  monacoEnvironmentReady = true
+  ;(window as Window & { MonacoEnvironment?: { getWorker: (workerId: string, label: string) => Worker } }).MonacoEnvironment =
+    {
+      getWorker: (_workerId: string, label: string) => {
+        if (label === 'json') {
+          return new Worker(new URL('monaco-editor/esm/vs/language/json/json.worker', import.meta.url), {
+            type: 'module'
+          })
+        }
+        if (label === 'css' || label === 'scss' || label === 'less') {
+          return new Worker(new URL('monaco-editor/esm/vs/language/css/css.worker', import.meta.url), {
+            type: 'module'
+          })
+        }
+        if (label === 'html' || label === 'handlebars' || label === 'razor') {
+          return new Worker(new URL('monaco-editor/esm/vs/language/html/html.worker', import.meta.url), {
+            type: 'module'
+          })
+        }
+        if (label === 'typescript' || label === 'javascript') {
+          return new Worker(new URL('monaco-editor/esm/vs/language/typescript/ts.worker', import.meta.url), {
+            type: 'module'
+          })
+        }
+        return new Worker(new URL('monaco-editor/esm/vs/editor/editor.worker', import.meta.url), {
+          type: 'module'
+        })
+      }
+    }
+}
+
+const loadMonaco = () => {
+  ensureMonacoEnvironment()
+  if (!monacoLoadPromise) {
+    monacoLoadPromise = Promise.all([
+      import('monaco-editor/esm/vs/editor/editor.api'),
+      import('monaco-editor/esm/vs/basic-languages/_.contribution')
+    ]).then(([monaco]) => monaco)
+  }
+  return monacoLoadPromise
 }
 
 const escapeMarkdownAltText = (value: string): string => value.replaceAll('\\', '\\\\').replaceAll(']', '\\]')
@@ -113,6 +165,15 @@ const blockToMarkdown = (element: Element): string => {
         return `\`\`\`plantuml\n${code}\n\`\`\``
       }
     }
+    if (element.getAttribute('data-code-block') === 'true') {
+      const language = element.getAttribute('data-language') ?? ''
+      const stored = element.getAttribute('data-code') ?? ''
+      const codeElement = element.querySelector('pre code')
+      const code = stored || codeElement?.textContent || ''
+      const normalized = code.replace(/\u00A0/g, ' ')
+      const trimmed = normalized.replace(/\s+$/, '')
+      return `\`\`\`${language}\n${trimmed}\n\`\`\``
+    }
   }
 
   if (tagName === 'UL') {
@@ -164,7 +225,9 @@ const getClosestBlockElement = (node: Node | null, root: HTMLElement): HTMLEleme
     return null
   }
 
-  const block = startElement.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, pre') as HTMLElement | null
+  const block = startElement.closest(
+    'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div[data-code-block="true"]'
+  ) as HTMLElement | null
   if (!block || !root.contains(block)) {
     return null
   }
@@ -234,12 +297,38 @@ const findPlainTextMatches = (source: string, query: string): Array<{ start: num
   return matches
 }
 
+const createEditorTextWalker = (editor: HTMLElement) =>
+  document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      const parent = (node as Text).parentElement
+      if (!parent) {
+        return NodeFilter.FILTER_REJECT
+      }
+      if (parent.closest('[data-code-block="true"]')) {
+        return NodeFilter.FILTER_REJECT
+      }
+      if (parent.closest('[data-diagram-editor="true"]')) {
+        return NodeFilter.FILTER_REJECT
+      }
+      return NodeFilter.FILTER_ACCEPT
+    }
+  })
+
+const getEditorPlainText = (editor: HTMLElement): string => {
+  const walker = createEditorTextWalker(editor)
+  let text = ''
+  while (walker.nextNode()) {
+    text += (walker.currentNode as Text).textContent ?? ''
+  }
+  return text.replace(/\u00A0/g, ' ')
+}
+
 const resolveTextPosition = (
   editor: HTMLElement,
   targetOffset: number,
   preferEnd: boolean
 ): { node: Text; offset: number } | null => {
-  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+  const walker = createEditorTextWalker(editor)
   let traversed = 0
   let lastTextNode: Text | null = null
 
@@ -318,7 +407,7 @@ const replaceAllInEditorTextNodes = (editor: HTMLElement, query: string, replace
     return 0
   }
 
-  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+  const walker = createEditorTextWalker(editor)
   let replaceCount = 0
 
   while (walker.nextNode()) {
@@ -522,12 +611,20 @@ const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch):
       return paragraph
     }
     case 'code-block': {
+      const container = document.createElement('div')
+      container.setAttribute('data-code-block', 'true')
+      container.setAttribute('data-language', ruleMatch.language ?? '')
+      container.setAttribute('contenteditable', 'false')
+      container.setAttribute('data-focus-on-mount', 'true')
+      container.className = 'wysiwyg-code-block'
       const pre = document.createElement('pre')
+      pre.className = 'wysiwyg-code-fallback'
       const code = document.createElement('code')
       code.append(document.createElement('br'))
       pre.append(code)
-      block.replaceWith(pre)
-      return code
+      container.append(pre)
+      block.replaceWith(container)
+      return container
     }
     default:
       return block
@@ -545,6 +642,19 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
   const isImeComposingRef = useRef(false)
   const findInputRef = useRef<HTMLInputElement>(null)
+  const markdownRef = useRef(markdown)
+  const monacoEditorsRef = useRef(
+    new Map<
+      HTMLElement,
+      {
+        editor: import('monaco-editor').editor.IStandaloneCodeEditor
+        dispose: () => void
+        wasEmptyBeforeKeyDown: boolean
+      }
+    >()
+  )
+  const monacoMountingRef = useRef(new Set<HTMLElement>())
+  const monacoThemeReadyRef = useRef(false)
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
   const [activeFindIndex, setActiveFindIndex] = useState(-1)
@@ -578,6 +688,248 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     return false
   }
 
+
+  useEffect(() => {
+    markdownRef.current = markdown
+  }, [markdown])
+
+  const getCodeBlockValue = (element: HTMLElement): string => {
+    const stored = element.getAttribute('data-code') ?? ''
+    if (stored) {
+      return stored
+    }
+    const codeElement = element.querySelector('pre code')
+    return codeElement?.textContent ?? ''
+  }
+
+  const setCodeBlockValue = (element: HTMLElement, value: string) => {
+    element.setAttribute('data-code', value)
+    const codeElement = element.querySelector('pre code')
+    if (codeElement) {
+      codeElement.textContent = value
+    }
+  }
+
+  const ensureMonacoTheme = (monaco: MonacoApi) => {
+    if (monacoThemeReadyRef.current) {
+      return
+    }
+    monaco.editor.defineTheme('wysiwyg-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '64748b' },
+        { token: 'string', foreground: '0f766e' },
+        { token: 'keyword', foreground: '1d4ed8' },
+        { token: 'number', foreground: 'b45309' }
+      ],
+      colors: {
+        'editor.background': '#F8F9FA',
+        'editorForeground': '#111827',
+        'editorLineNumber.foreground': '#94A3B8',
+        'editorLineNumber.activeForeground': '#475569',
+        'editor.selectionBackground': '#DCE7F8',
+        'editor.inactiveSelectionBackground': '#E7EEF8',
+        'editorIndentGuide.background': '#E2E8F0',
+        'editorIndentGuide.activeBackground': '#CBD5F5'
+      }
+    })
+    monacoThemeReadyRef.current = true
+  }
+
+  const scheduleEditorMount = (work: () => void) => {
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      ;(window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback?.(work)
+      return
+    }
+    globalThis.setTimeout(work, 0)
+  }
+
+  const mountMonacoEditors = async () => {
+    if (!editorRef.current) {
+      return
+    }
+    const containers = Array.from(
+      editorRef.current.querySelectorAll('[data-code-block="true"]')
+    ) as HTMLElement[]
+    const liveSet = new Set(containers)
+    monacoEditorsRef.current.forEach((instance, container) => {
+      if (!liveSet.has(container)) {
+        instance.dispose()
+        monacoEditorsRef.current.delete(container)
+        monacoMountingRef.current.delete(container)
+      }
+    })
+    if (containers.length === 0) {
+      return
+    }
+    const monaco = await loadMonaco()
+    ensureMonacoTheme(monaco)
+    containers.forEach((container) => {
+      if (monacoEditorsRef.current.has(container)) {
+        const instance = monacoEditorsRef.current.get(container)
+        if (instance) {
+          const nextValue = getCodeBlockValue(container)
+          if (instance.editor.getValue() !== nextValue) {
+            instance.editor.setValue(nextValue)
+          }
+        }
+        return
+      }
+      if (monacoMountingRef.current.has(container)) {
+        return
+      }
+      monacoMountingRef.current.add(container)
+      scheduleEditorMount(() => {
+        if (!monacoMountingRef.current.has(container)) {
+          return
+        }
+        if (!container.isConnected) {
+          monacoMountingRef.current.delete(container)
+          return
+        }
+        container.setAttribute('contenteditable', 'false')
+        const existingHost = container.querySelector('.wysiwyg-monaco-host')
+        if (existingHost) {
+          existingHost.remove()
+        }
+        const fallback = container.querySelector('pre')
+        if (fallback) {
+          fallback.classList.add('wysiwyg-code-fallback')
+        }
+        const editorHost = document.createElement('div')
+        editorHost.className = 'wysiwyg-monaco-host'
+        container.append(editorHost)
+        container.classList.add('wysiwyg-code-block-mounted')
+        const language = container.getAttribute('data-language') || 'plaintext'
+        const value = getCodeBlockValue(container)
+        const editor = monaco.editor.create(editorHost, {
+          value,
+          language,
+          theme: 'wysiwyg-light',
+          lineNumbers: 'on',
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          wordWrap: 'on',
+          fontSize: 13,
+          padding: { top: 12, bottom: 12 },
+          tabSize: 2,
+          automaticLayout: true
+        })
+        const resizeObserver = new ResizeObserver(() => {
+          editor.layout()
+        })
+        resizeObserver.observe(editorHost)
+        const updateHeight = () => {
+          const contentHeight = editor.getContentHeight()
+          editorHost.style.height = `${Math.max(160, contentHeight)}px`
+          editor.layout()
+        }
+        updateHeight()
+        const sizeListener = editor.onDidContentSizeChange(updateHeight)
+        let syncTimer: number | null = null
+        const changeListener = editor.onDidChangeModelContent(() => {
+          const nextValue = editor.getValue()
+          setCodeBlockValue(container, nextValue)
+          if (syncTimer !== null) {
+            window.clearTimeout(syncTimer)
+          }
+          syncTimer = window.setTimeout(() => {
+            if (!editorRef.current) {
+              return
+            }
+            const nextMarkdown = htmlToMarkdown(editorRef.current)
+            lastSyncedMarkdownRef.current = nextMarkdown
+            if (nextMarkdown !== markdownRef.current) {
+              setMarkdown(nextMarkdown)
+            }
+          }, 150)
+        })
+        
+        const handleCodeBlockKeyDown = (event: KeyboardEvent) => {
+          const model = editor.getModel()
+          if (!model) {
+            event.stopPropagation()
+            return
+          }
+          
+          const instance = monacoEditorsRef.current.get(container)
+          if (event.key === 'Backspace') {
+            const content = model.getValue()
+            const selection = editor.getSelection()
+            const isEmpty = content.trim() === ''
+            const isAtStart = selection && selection.startLineNumber === 1 && selection.startColumn === 1
+            
+            if (isEmpty && isAtStart && instance && instance.wasEmptyBeforeKeyDown) {
+              event.preventDefault()
+              event.stopPropagation()
+              if (editorRef.current) {
+                const beforeMarkdown = htmlToMarkdown(editorRef.current)
+                const beforeHtml = editorRef.current.innerHTML
+                instance.dispose()
+                monacoEditorsRef.current.delete(container)
+                const paragraph = document.createElement('p')
+                paragraph.append(document.createElement('br'))
+                container.replaceWith(paragraph)
+                setCaretToStart(paragraph)
+                const nextMarkdown = htmlToMarkdown(editorRef.current)
+                const afterHtml = editorRef.current.innerHTML
+                structuralHistoryRef.current.push({
+                  rule: 'code-block',
+                  triggerText: '',
+                  triggerKey: 'Backspace',
+                  beforeMarkdown,
+                  afterMarkdown: nextMarkdown,
+                  beforeHtml,
+                  afterHtml,
+                  beforeCursorOffset: 0,
+                  afterCursorOffset: 0,
+                  createdAt: new Date().toISOString()
+                })
+                lastSyncedMarkdownRef.current = nextMarkdown
+                if (nextMarkdown !== markdownRef.current) {
+                  setMarkdown(nextMarkdown)
+                }
+              }
+              return
+            }
+            
+            if (instance) {
+              instance.wasEmptyBeforeKeyDown = isEmpty
+            }
+          } else if (instance) {
+            instance.wasEmptyBeforeKeyDown = model.getValue().trim() === ''
+          }
+          event.stopPropagation()
+        }
+        
+        editorHost.addEventListener('keydown', handleCodeBlockKeyDown)
+        const stopPropagation = (event: Event) => {
+          event.stopPropagation()
+        }
+        container.addEventListener('keypress', stopPropagation)
+        container.addEventListener('keyup', stopPropagation)
+        const dispose = () => {
+          editorHost.removeEventListener('keydown', handleCodeBlockKeyDown)
+          container.removeEventListener('keypress', stopPropagation)
+          container.removeEventListener('keyup', stopPropagation)
+          resizeObserver.disconnect()
+          sizeListener.dispose()
+          changeListener.dispose()
+          editor.dispose()
+          monacoMountingRef.current.delete(container)
+        }
+        const initialValue = value.trim() === ''
+        monacoEditorsRef.current.set(container, { editor, dispose, wasEmptyBeforeKeyDown: initialValue })
+        monacoMountingRef.current.delete(container)
+        if (container.getAttribute('data-focus-on-mount') === 'true') {
+          container.removeAttribute('data-focus-on-mount')
+          editor.focus()
+        }
+      })
+    })
+  }
+
   const insertNodesAfterBlockOrAppend = (editor: HTMLElement, block: HTMLElement | null, nodes: Node[]): void => {
     if (block && block.parentElement) {
       const parent = block.parentElement
@@ -601,13 +953,26 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    if (lastSyncedMarkdownRef.current === markdown) {
-      return
+    if (lastSyncedMarkdownRef.current !== markdown) {
+      monacoEditorsRef.current.forEach((instance) => {
+        instance.dispose()
+      })
+      monacoEditorsRef.current.clear()
+      monacoMountingRef.current.clear()
+      editorRef.current.innerHTML = markdownToEditableHtml(markdown)
+      lastSyncedMarkdownRef.current = markdown
     }
-
-    editorRef.current.innerHTML = markdownToEditableHtml(markdown)
-    lastSyncedMarkdownRef.current = markdown
+    void mountMonacoEditors()
   }, [markdown])
+
+  useEffect(() => {
+    return () => {
+      monacoEditorsRef.current.forEach((instance) => {
+        instance.dispose()
+      })
+      monacoEditorsRef.current.clear()
+    }
+  }, [])
 
   useEffect(() => {
     if (!editorRef.current) {
@@ -653,7 +1018,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    const currentPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const currentPlainText = getEditorPlainText(editorRef.current)
     const matches = findPlainTextMatches(currentPlainText, findQuery)
     setFindResultCount(matches.length)
     setActiveFindIndex((current) => {
@@ -683,7 +1048,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     const nextMarkdown = htmlToMarkdown(editorRef.current)
     lastSyncedMarkdownRef.current = nextMarkdown
 
-    if (nextMarkdown !== markdown) {
+    if (nextMarkdown !== markdownRef.current) {
       setMarkdown(nextMarkdown)
     }
   }
@@ -702,7 +1067,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    const currentPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const currentPlainText = getEditorPlainText(editorRef.current)
     const matches = findPlainTextMatches(currentPlainText, findQuery)
     setFindResultCount(matches.length)
 
@@ -728,7 +1093,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     const nextMarkdown = htmlToMarkdown(editorRef.current)
     lastSyncedMarkdownRef.current = nextMarkdown
-    if (nextMarkdown !== markdown) {
+    if (nextMarkdown !== markdownRef.current) {
       setMarkdown(nextMarkdown)
     }
   }
@@ -738,7 +1103,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    const currentPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const currentPlainText = getEditorPlainText(editorRef.current)
     const matches = findPlainTextMatches(currentPlainText, findQuery)
     setFindResultCount(matches.length)
 
@@ -757,7 +1122,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     syncMarkdownFromEditor()
 
-    const refreshedPlainText = (editorRef.current.textContent ?? '').replace(/\u00A0/g, ' ')
+    const refreshedPlainText = getEditorPlainText(editorRef.current)
     const refreshedMatches = findPlainTextMatches(refreshedPlainText, findQuery)
     setFindResultCount(refreshedMatches.length)
 
@@ -851,7 +1216,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     if (insertedImage) {
       const nextMarkdown = htmlToMarkdown(editor)
       lastSyncedMarkdownRef.current = nextMarkdown
-      if (nextMarkdown !== markdown) {
+      if (nextMarkdown !== markdownRef.current) {
         setMarkdown(nextMarkdown)
       }
     }
@@ -865,9 +1230,16 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
+    monacoEditorsRef.current.forEach((instance) => {
+      instance.dispose()
+    })
+    monacoEditorsRef.current.clear()
+    monacoMountingRef.current.clear()
+
     const snapshotMarkdown = direction === 'undo' ? transaction.beforeMarkdown : transaction.afterMarkdown
     const snapshotHtml = direction === 'undo' ? transaction.beforeHtml : transaction.afterHtml
     editorRef.current.innerHTML = snapshotHtml ?? markdownToEditableHtml(snapshotMarkdown)
+    void mountMonacoEditors()
     const restoreTarget =
       (editorRef.current.firstElementChild as HTMLElement | null) ??
       editorRef.current.appendChild(document.createElement('p'))
@@ -974,7 +1346,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
               createdAt: new Date().toISOString()
             })
             lastSyncedMarkdownRef.current = nextMarkdown
-            if (nextMarkdown !== markdown) {
+            if (nextMarkdown !== markdownRef.current) {
               setMarkdown(nextMarkdown)
             }
             return
@@ -1003,7 +1375,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                 createdAt: new Date().toISOString()
               })
               lastSyncedMarkdownRef.current = nextMarkdown
-              if (nextMarkdown !== markdown) {
+              if (nextMarkdown !== markdownRef.current) {
                 setMarkdown(nextMarkdown)
               }
               return
@@ -1031,7 +1403,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                 createdAt: new Date().toISOString()
               })
               lastSyncedMarkdownRef.current = nextMarkdown
-              if (nextMarkdown !== markdown) {
+              if (nextMarkdown !== markdownRef.current) {
                 setMarkdown(nextMarkdown)
               }
               return
@@ -1078,7 +1450,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
             const nextMarkdown = htmlToMarkdown(editorRef.current)
             lastSyncedMarkdownRef.current = nextMarkdown
-            if (nextMarkdown !== markdown) {
+            if (nextMarkdown !== markdownRef.current) {
               setMarkdown(nextMarkdown)
             }
             return
@@ -1121,7 +1493,9 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     const beforeMarkdown = htmlToMarkdown(editorRef.current)
     const beforeHtml = editorRef.current.innerHTML
     const transformedEditableTarget = replaceBlockByRule(block, match)
-    setCaretToStart(transformedEditableTarget)
+    if (match.rule !== 'code-block') {
+      setCaretToStart(transformedEditableTarget)
+    }
     const afterMarkdown = htmlToMarkdown(editorRef.current)
     const afterHtml = editorRef.current.innerHTML
 
@@ -1166,7 +1540,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const nextMarkdown = htmlToMarkdown(editorRef.current)
       editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
       lastSyncedMarkdownRef.current = nextMarkdown
-      if (nextMarkdown !== markdown) {
+      if (nextMarkdown !== markdownRef.current) {
         setMarkdown(nextMarkdown)
       }
     } catch (error) {
@@ -1176,7 +1550,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const nextMarkdown = htmlToMarkdown(editorRef.current)
       editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
       lastSyncedMarkdownRef.current = nextMarkdown
-      if (nextMarkdown !== markdown) {
+      if (nextMarkdown !== markdownRef.current) {
         setMarkdown(nextMarkdown)
       }
     }

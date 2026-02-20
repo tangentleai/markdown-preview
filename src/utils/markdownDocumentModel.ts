@@ -386,7 +386,9 @@ const blockNodeToHtml = (node: BlockNode): string => {
           plantUmlCode
         )}" class="max-w-full h-auto" /></div>`
       }
-      return `<pre><code>${escapeHtml(node.code)}</code></pre>`
+      return `<div class="wysiwyg-code-block" data-code-block="true" data-language="${escapeHtml(
+        lang
+      )}" contenteditable="false"><pre class="wysiwyg-code-fallback"><code>${escapeHtml(node.code)}</code></pre></div>`
     }
     case 'mathBlock': {
       const rendered = katex.renderToString(node.tex, { throwOnError: false, displayMode: true })

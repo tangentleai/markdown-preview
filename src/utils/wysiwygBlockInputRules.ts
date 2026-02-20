@@ -15,9 +15,10 @@ export type BlockInputRuleName =
 
 export interface BlockInputRuleMatch {
   rule: BlockInputRuleName
-  triggerText: '#' | '##' | '###' | '####' | '#####' | '######' | '-' | '1.' | '>' | '```'
+  triggerText: string
   triggerKey: ' ' | 'Enter'
   targetTag: 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6' | 'UL' | 'OL' | 'BLOCKQUOTE' | 'PRE'
+  language?: string
 }
 
 export interface BlockInputRuleTransaction {
@@ -129,12 +130,14 @@ export const matchBlockInputRule = (
     }
   }
 
-  if (lineText === '```') {
+  if (lineText.startsWith('```')) {
+    const language = lineText.slice(3).trim()
     return {
       rule: 'code-block',
-      triggerText: '```',
+      triggerText: lineText,
       triggerKey,
-      targetTag: 'PRE'
+      targetTag: 'PRE',
+      language
     }
   }
 
@@ -143,14 +146,14 @@ export const matchBlockInputRule = (
 
 export const canTriggerBlockInputRule = (lineText: string, key: string): BlockInputRuleMatch | null => {
   if (key === ' ') {
-    if (lineText === '```') {
+    if (lineText.startsWith('```')) {
       return null
     }
 
     return matchBlockInputRule(lineText, ' ')
   }
 
-  if (key === 'Enter' && lineText === '```') {
+  if (key === 'Enter' && lineText.startsWith('```')) {
     return matchBlockInputRule(lineText, 'Enter')
   }
 

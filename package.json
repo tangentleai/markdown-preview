@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "katex": "^0.16.9",
+    "monaco-editor": "^0.55.1",
     "pako": "^2.1.0",
     "plantuml-encoder": "^1.4.0",
     "react": "^18.2.0",

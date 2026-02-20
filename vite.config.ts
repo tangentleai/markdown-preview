@@ -7,5 +7,8 @@ export default defineConfig({
   server: {
     port: 33100,
     open: true
+  },
+  optimizeDeps: {
+    exclude: ['monaco-editor']
   }
 })
