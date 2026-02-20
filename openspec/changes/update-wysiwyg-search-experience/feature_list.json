@@ -36,7 +36,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证 Esc 关闭后键入文本不丢失且光标行为正常。"
       ],
-      "passes": false
+      "passes": true
     },
     "R4": {
       "category": "functional",

@@ -14,10 +14,13 @@
   - BUNDLE (RUN #3): R2 focus-stability fix + GUI MCP runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #3): Supervisor executed retry bundle and validated Enter-driven next navigation with wrap-around from find input focus | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={c0:"匹配：0/2",c1:"匹配：1/2",c2:"匹配：2/2",c3:"匹配：1/2",c4:"匹配：2/2",f0:true,f1:true,f2:true,f3:true} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/01-query-entered.png, auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/02-enter-first.png, auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/03-enter-second.png, auto_test_openspec/update-wysiwyg-search-experience/run-0003__task-1.2__ref-R2__20260220T151504Z/outputs/screenshots/04-enter-wrap.png
 
-- [ ] 1.3 支持 Esc 统一关闭查找栏并恢复编辑焦点 [#R3]
+- [x] 1.3 支持 Esc 统一关闭查找栏并恢复编辑焦点 [#R3]
   - ACCEPT: 查找输入框、替换输入框、编辑区焦点三种状态下按 Esc 均关闭查找栏，且编辑区可立即继续输入。
   - TEST: SCOPE: GUI
     - 生成 GUI MCP runbook，验证 Esc 关闭后键入文本不丢失且光标行为正常。
+  - BUNDLE (RUN #4): R3 esc close + focus restore GUI runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0004__task-1.3__ref-R3__20260220T152615Z | HOW_TO_RUN: run.sh/run.bat
+  - BUNDLE (RUN #5): R3 esc close caret-at-end fix + GUI runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0005__task-1.3__ref-R3__20260220T153638Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #5): Supervisor executed retry bundle and verified Esc closes toolbar from find/replace/editor focus with immediate append typing after focus restore | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0005__task-1.3__ref-R3__20260220T153638Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={h1:"true",h2:"true",h3:"true",f1:true,f2:true,f3:true,t1:"StartA",t2:"StartAB",t3:"StartABC",hasStartA:true,hasStartAB:true,hasStartABC:true} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0005__task-1.3__ref-R3__20260220T153638Z/outputs/screenshots/01-esc-find-input-starta.png, auto_test_openspec/update-wysiwyg-search-experience/run-0005__task-1.3__ref-R3__20260220T153638Z/outputs/screenshots/02-esc-replace-input-startab.png, auto_test_openspec/update-wysiwyg-search-experience/run-0005__task-1.3__ref-R3__20260220T153638Z/outputs/screenshots/03-esc-editor-focus-startabc.png
 
 ## 2. 命中导航、滚动与高亮
 - [ ] 2.1 新增“查找上一个”按钮并与“查找下一个”形成双向导航 [#R4]
