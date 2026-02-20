@@ -1335,6 +1335,79 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
+    if (event.key === 'Tab' && !imeComposingNow) {
+      const selection = window.getSelection()
+      if (selection && selection.isCollapsed && selection.rangeCount > 0) {
+        const block = getClosestBlockElement(selection.anchorNode, editorRef.current)
+        if (block && block.tagName === 'LI') {
+          event.preventDefault()
+          const list = block.parentElement
+          if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) {
+            return
+          }
+          
+          const prevListItem = block.previousElementSibling as HTMLElement | null
+          if (!prevListItem || prevListItem.tagName !== 'LI') {
+            return
+          }
+          
+          let nestedList = prevListItem.querySelector('ul, ol') as HTMLElement | null
+          if (!nestedList) {
+            nestedList = document.createElement(list.tagName.toLowerCase())
+            prevListItem.append(nestedList)
+          }
+          
+          nestedList.append(block)
+          setCaretToStart(block)
+          
+          const nextMarkdown = htmlToMarkdown(editorRef.current)
+          lastSyncedMarkdownRef.current = nextMarkdown
+          if (nextMarkdown !== markdownRef.current) {
+            setMarkdown(nextMarkdown)
+          }
+          return
+        }
+      }
+    }
+
+    if (event.key === 'Tab' && event.shiftKey && !imeComposingNow) {
+      const selection = window.getSelection()
+      if (selection && selection.isCollapsed && selection.rangeCount > 0) {
+        const block = getClosestBlockElement(selection.anchorNode, editorRef.current)
+        if (block && block.tagName === 'LI') {
+          event.preventDefault()
+          const list = block.parentElement
+          if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) {
+            return
+          }
+          
+          const parentListItem = list.parentElement as HTMLElement | null
+          if (!parentListItem || parentListItem.tagName !== 'LI') {
+            return
+          }
+          
+          const grandList = parentListItem.parentElement
+          if (!grandList) {
+            return
+          }
+          
+          if (list.children.length === 1) {
+            list.remove()
+          }
+          
+          grandList.insertBefore(block, parentListItem.nextSibling)
+          setCaretToStart(block)
+          
+          const nextMarkdown = htmlToMarkdown(editorRef.current)
+          lastSyncedMarkdownRef.current = nextMarkdown
+          if (nextMarkdown !== markdownRef.current) {
+            setMarkdown(nextMarkdown)
+          }
+          return
+        }
+      }
+    }
+
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
       if (normalizedKey === 'f') {
         event.preventDefault()
