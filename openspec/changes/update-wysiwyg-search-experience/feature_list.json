@@ -48,7 +48,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证上/下按钮往返导航一致性。"
       ],
-      "passes": false
+      "passes": true
     },
     "R5": {
       "category": "functional",
