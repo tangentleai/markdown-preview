@@ -60,7 +60,7 @@
         "Run: SCOPE: GUI",
         "Run: 使用长文档验证滚动触发条件与高亮状态切换。"
       ],
-      "passes": false
+      "passes": true
     },
     "R6": {
       "category": "functional",
