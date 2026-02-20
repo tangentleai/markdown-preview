@@ -1,0 +1,1 @@
+[RUN 1] task=1.1[#R1] worker_session=ses_384753ee5ffeaR746h4l33AKtD result=PASS evidence=auto_test_openspec/update-wysiwyg-search-experience/run-0001__task-1.1__ref-R1__20260220T145600Z/ time=2026-02-20T15:02:59Z
