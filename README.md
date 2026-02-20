@@ -159,7 +159,6 @@ $$
 
 ### Mermaid 图表
 
-```markdown
 ```mermaid
 graph TD
     A[开始] --> B{条件判断}
@@ -167,11 +166,9 @@ graph TD
     B -->|否| D[结束]
     C --> D
 ```
-```
 
 ### PlantUML 图表
 
-```markdown
 ```plantuml
 @startuml
 class Animal {
@@ -186,20 +183,17 @@ class Dog extends Animal {
 Animal <|-- Dog
 @enduml
 ```
-```
 
 ### 代码块
 
 代码块支持语法高亮和语言切换：
 
-```markdown
 ```typescript
 function greet(name: string): string {
   return `Hello, ${name}!`;
 }
 
 console.log(greet('World'));
-```
 ```
 
 点击代码块左上角的语言标签可以切换编程语言。
