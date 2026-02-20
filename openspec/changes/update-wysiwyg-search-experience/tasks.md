@@ -48,11 +48,14 @@
   - EVIDENCE (RUN #10): Supervisor executed bundle and verified no-match state renders 0/N while previous/next/replace-current/replace-all are disabled | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z/run.sh (started server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={counter:"匹配：0/N",bPrev:true,bNext:true,bRc:true,bRa:true} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z/outputs/screenshots/01-counter-0-over-n.png, auto_test_openspec/update-wysiwyg-search-experience/run-0010__task-2.3__ref-R6__20260220T164435Z/outputs/screenshots/02-all-actions-disabled-no-match.png
 
 ## 3. 匹配策略与替换行为
-- [ ] 3.1 增加区分大小写、整词匹配、正则模式选项并实现联动规则 [#R7]
+- [x] 3.1 增加区分大小写、整词匹配、正则模式选项并实现联动规则 [#R7]
   - ACCEPT: 支持区分大小写按钮（默认关闭，关闭时始终不区分大小写，开启后强制区分）；支持整词匹配仅对拉丁单词生效；正则模式开启时自动禁用整词匹配。
   - TEST: SCOPE: MIXED
     - CLI: 增加匹配引擎测试（大小写按钮开关、整词拉丁边界、正则 `i/m`、正则与整词互斥）。
     - GUI: 生成 MCP runbook，验证选项切换后的命中数量和命中位置。
+  - BUNDLE (RUN #11): R7 case toggle + Latin whole-word + regex/whole-word linkage + MIXED CLI/GUI validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0011__task-3.1__ref-R7__20260220T165349Z | HOW_TO_RUN: run.sh/run.bat
+  - BUNDLE (RUN #12): R7 Latin whole-word repeated-token boundary fix + case/whole-word combo stability + regex/whole-word linkage + MIXED CLI/GUI validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-search-experience/run-0012__task-3.1__ref-R7__20260220T170855Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #12): Supervisor executed MIXED validation and confirmed case toggle semantics, Latin-only whole-word behavior, and regex auto-disabling whole-word | VALIDATED: bash auto_test_openspec/update-wysiwyg-search-experience/run-0012__task-3.1__ref-R7__20260220T170855Z/tests/test_cli_r7_match_engine.sh (PASS: 6 tests); bash auto_test_openspec/update-wysiwyg-search-experience/run-0012__task-3.1__ref-R7__20260220T170855Z/run.sh (started GUI server on http://127.0.0.1:33100/, background start exit=0); MCP verification result={c7:"匹配：0/2",c8:"匹配：0/2",wholePressed:"false",wholeDisabled:true} | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-search-experience/run-0012__task-3.1__ref-R7__20260220T170855Z/outputs/screenshots/01-latin-whole-word-0of2.png, auto_test_openspec/update-wysiwyg-search-experience/run-0012__task-3.1__ref-R7__20260220T170855Z/outputs/screenshots/02-case-plus-whole-word-0of2.png, auto_test_openspec/update-wysiwyg-search-experience/run-0012__task-3.1__ref-R7__20260220T170855Z/outputs/screenshots/03-regex-disables-whole-word.png
 
 - [ ] 3.2 支持正则查找/替换并处理非法表达式 [#R8]
   - ACCEPT: 正则模式支持 JS RegExp（`i/m`，全局由查找流程控制）；非法表达式时给出明确错误提示且不破坏当前编辑状态。

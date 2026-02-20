@@ -85,7 +85,7 @@
         "Run: CLI: 增加匹配引擎测试（大小写按钮开关、整词拉丁边界、正则 `i/m`、正则与整词互斥）。",
         "Run: GUI: 生成 MCP runbook，验证选项切换后的命中数量和命中位置。"
       ],
-      "passes": false
+      "passes": true
     },
     "R8": {
       "category": "functional",
