@@ -1624,41 +1624,72 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
     }
   }
-  const openDiagramEditorInline = (target: HTMLElement, lang: 'mermaid' | 'plantuml', code: string) => {
+  const openDiagramEditorInline = async (target: HTMLElement, lang: 'mermaid' | 'plantuml', code: string) => {
     if (!editorRef.current) return
     const host = editorRef.current
     const existing = host.querySelector('[data-diagram-editor="true"]') as HTMLElement | null
     if (existing) {
       existing.remove()
     }
+    
+    const monaco = await loadMonaco()
+    ensureMonacoTheme(monaco)
+    
     const container = document.createElement('div')
     container.setAttribute('data-diagram-editor', 'true')
     container.setAttribute('contenteditable', 'false')
-    container.className = 'rounded border border-gray-300 bg-white shadow-sm mb-2'
+    container.className = 'wysiwyg-code-block wysiwyg-code-block-mounted mb-2'
+    
     const header = document.createElement('div')
-    header.className = 'flex items-center justify-between px-2 py-1 border-b border-gray-200'
-    const title = document.createElement('span')
-    title.className = 'text-xs text-gray-700'
-    title.textContent = '图表源码编辑'
+    header.className = 'wysiwyg-code-header'
+    const languageLabel = document.createElement('span')
+    languageLabel.className = 'wysiwyg-code-language-select'
+    languageLabel.textContent = lang === 'mermaid' ? 'Mermaid' : 'PlantUML'
+    languageLabel.style.cursor = 'default'
     const status = document.createElement('span')
-    status.className = 'text-xs text-gray-500'
+    status.className = 'text-xs text-gray-500 ml-auto'
     status.setAttribute('data-status', 'idle')
-    header.append(title, status)
-    const body = document.createElement('div')
-    body.className = 'p-2'
-    const textarea = document.createElement('textarea')
-    textarea.className =
-      'w-full min-h-56 max-h-[45vh] resize-y p-2 border border-gray-300 rounded font-mono text-sm leading-5 outline-none'
-    textarea.value = `\`\`\`${lang}\n${code.trim()}\n\`\`\``
-    textarea.setAttribute('aria-label', '图表源码编辑区')
-    body.append(textarea)
-    container.append(header, body)
+    header.append(languageLabel, status)
+    
+    const editorHost = document.createElement('div')
+    editorHost.className = 'wysiwyg-monaco-host'
+    
+    container.append(header, editorHost)
     target.parentElement?.insertBefore(container, target)
+    
+    const editor = monaco.editor.create(editorHost, {
+      value: code,
+      language: lang === 'mermaid' ? 'markdown' : 'markdown',
+      theme: 'wysiwyg-light',
+      lineNumbers: 'on',
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      wordWrap: 'on',
+      fontSize: 13,
+      padding: { top: 12, bottom: 12 },
+      tabSize: 2,
+      automaticLayout: true
+    })
+    
+    const resizeObserver = new ResizeObserver(() => {
+      editor.layout()
+    })
+    resizeObserver.observe(editorHost)
+    
+    const updateHeight = () => {
+      const contentHeight = editor.getContentHeight()
+      editorHost.style.height = `${contentHeight}px`
+      editor.layout()
+    }
+    updateHeight()
+    const sizeListener = editor.onDidContentSizeChange(updateHeight)
+    
     let applyTimer: number | null = null
+    
     const validate = async (raw: string) => {
       let ok = false
       if (lang === 'mermaid') {
-      try {
+        try {
           await (mermaid as any).parse(raw)
           ok = true
         } catch {
@@ -1668,9 +1699,10 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         ok = /@startuml/.test(raw) && /@enduml/.test(raw)
       }
       status.textContent = ok ? '语法校验通过' : '语法错误'
-      status.className = ok ? 'text-xs text-emerald-600' : 'text-xs text-red-600'
+      status.className = ok ? 'text-xs text-emerald-600 ml-auto' : 'text-xs text-red-600 ml-auto'
       return ok
     }
+    
     const applyPlantUmlPreview = (raw: string) => {
       const img = target.querySelector('img')
       if (!img) {
@@ -1680,14 +1712,28 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const encoded = encodePlantUml(raw.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+/g, '\n'))
       img.setAttribute('src', `https://www.plantuml.com/plantuml/svg/${encoded}`)
     }
-    const extract = (md: string): string => {
-      const fence = new RegExp('^```' + lang + '\\s*\\n([\\s\\S]*?)\\n```\\s*$', 'm')
-      const m = md.match(fence)
-      if (m) return m[1]
-      return md.replace(/```[a-zA-Z]*\s*\n?/g, '').replace(/```\s*$/g, '').trim()
+    
+    const applyChanges = (raw: string) => {
+      if (lang === 'plantuml') {
+        applyPlantUmlPreview(raw)
+      } else {
+        applyDiagramCode(target, lang, raw)
+      }
     }
-    textarea.addEventListener('input', () => {
-      const raw = extract(textarea.value)
+    
+    const closeEditor = () => {
+      const raw = editor.getValue()
+      applyChanges(raw)
+      resizeObserver.disconnect()
+      sizeListener.dispose()
+      changeListener.dispose()
+      editor.dispose()
+      container.remove()
+      syncMarkdownFromEditor()
+    }
+    
+    const changeListener = editor.onDidChangeModelContent(() => {
+      const raw = editor.getValue()
       void validate(raw).then((ok) => {
         if (!ok) {
           return
@@ -1696,36 +1742,25 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           window.clearTimeout(applyTimer)
         }
         applyTimer = window.setTimeout(() => {
-          if (lang === 'plantuml') {
-            applyPlantUmlPreview(raw)
-          } else {
-            applyDiagramCode(target, lang, raw)
-          }
+          applyChanges(raw)
         }, 150)
       })
     })
-    textarea.addEventListener('blur', () => {
-      const raw = extract(textarea.value)
-      if (lang === 'plantuml') {
-        applyPlantUmlPreview(raw)
-      } else {
-        applyDiagramCode(target, lang, raw)
-      }
-      container.remove()
-      syncMarkdownFromEditor()
+    
+    editor.onDidBlurEditorWidget(() => {
+      closeEditor()
     })
-    textarea.addEventListener('keydown', (e) => {
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        const raw = extract(textarea.value)
-        if (lang === 'plantuml') {
-          applyPlantUmlPreview(raw)
-        } else {
-          applyDiagramCode(target, lang, raw)
-        }
-        container.remove()
-        syncMarkdownFromEditor()
+        e.preventDefault()
+        e.stopPropagation()
+        closeEditor()
       }
-    })
+    }
+    editorHost.addEventListener('keydown', handleKeyDown)
+    
+    editor.focus()
   }
   const applyDiagramCode = (target: HTMLElement, lang: 'mermaid' | 'plantuml', code: string) => {
     if (lang === 'mermaid') {
