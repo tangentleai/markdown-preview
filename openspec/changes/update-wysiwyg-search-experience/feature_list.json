@@ -98,7 +98,7 @@
         "Run: CLI: 增加合法/非法正则用例，验证匹配与替换输出。",
         "Run: GUI: 生成 MCP runbook，验证错误提示、恢复行为与后续正常查找。"
       ],
-      "passes": false
+      "passes": true
     },
     "R9": {
       "category": "functional",
