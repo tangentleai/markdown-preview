@@ -66,7 +66,31 @@ const loadMonaco = () => {
   if (!monacoLoadPromise) {
     monacoLoadPromise = Promise.all([
       import('monaco-editor/esm/vs/editor/editor.api'),
-      import('monaco-editor/esm/vs/basic-languages/_.contribution')
+      import('monaco-editor/esm/vs/basic-languages/_.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/typescript/typescript.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/python/python.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/java/java.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/csharp/csharp.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/go/go.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/rust/rust.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/ruby/ruby.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/php/php.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/swift/swift.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/kotlin/kotlin.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/scala/scala.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/sql/sql.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/html/html.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/css/css.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/scss/scss.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/less/less.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/xml/xml.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/shell/shell.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/powershell/powershell.contribution'),
+      import('monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution')
     ]).then(([monaco]) => monaco)
   }
   return monacoLoadPromise
@@ -793,19 +817,48 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         if (existingHost) {
           existingHost.remove()
         }
+        const existingHeader = container.querySelector('.wysiwyg-code-header')
+        if (existingHeader) {
+          existingHeader.remove()
+        }
         const fallback = container.querySelector('pre')
         if (fallback) {
           fallback.classList.add('wysiwyg-code-fallback')
         }
+        
+        const supportedLanguages = [
+          'plaintext', 'javascript', 'typescript', 'python', 'java', 'cpp', 'csharp',
+          'go', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'scala', 'sql',
+          'html', 'css', 'scss', 'less', 'xml', 'yaml', 'markdown', 'shell', 'dockerfile'
+        ]
+        
+        const header = document.createElement('div')
+        header.className = 'wysiwyg-code-header'
+        const languageSelect = document.createElement('select')
+        languageSelect.className = 'wysiwyg-code-language-select'
+        const currentLanguage = container.getAttribute('data-language') || 'plaintext'
+        
+        supportedLanguages.forEach((lang) => {
+          const option = document.createElement('option')
+          option.value = lang
+          option.textContent = lang === 'plaintext' ? 'Plain Text' : lang.charAt(0).toUpperCase() + lang.slice(1)
+          if (lang === currentLanguage) {
+            option.selected = true
+          }
+          languageSelect.append(option)
+        })
+        
+        header.append(languageSelect)
+        container.append(header)
+        
         const editorHost = document.createElement('div')
         editorHost.className = 'wysiwyg-monaco-host'
         container.append(editorHost)
         container.classList.add('wysiwyg-code-block-mounted')
-        const language = container.getAttribute('data-language') || 'plaintext'
         const value = getCodeBlockValue(container)
         const editor = monaco.editor.create(editorHost, {
           value,
-          language,
+          language: currentLanguage,
           theme: 'wysiwyg-light',
           lineNumbers: 'on',
           minimap: { enabled: false },
@@ -816,6 +869,21 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           tabSize: 2,
           automaticLayout: true
         })
+        
+        const handleLanguageChange = () => {
+          const newLanguage = languageSelect.value
+          container.setAttribute('data-language', newLanguage)
+          monaco.editor.setModelLanguage(editor.getModel()!, newLanguage)
+          if (editorRef.current) {
+            const nextMarkdown = htmlToMarkdown(editorRef.current)
+            lastSyncedMarkdownRef.current = nextMarkdown
+            if (nextMarkdown !== markdownRef.current) {
+              setMarkdown(nextMarkdown)
+            }
+          }
+        }
+        languageSelect.addEventListener('change', handleLanguageChange)
+        
         const resizeObserver = new ResizeObserver(() => {
           editor.layout()
         })
@@ -910,6 +978,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         container.addEventListener('keypress', stopPropagation)
         container.addEventListener('keyup', stopPropagation)
         const dispose = () => {
+          languageSelect.removeEventListener('change', handleLanguageChange)
           editorHost.removeEventListener('keydown', handleCodeBlockKeyDown)
           container.removeEventListener('keypress', stopPropagation)
           container.removeEventListener('keyup', stopPropagation)
