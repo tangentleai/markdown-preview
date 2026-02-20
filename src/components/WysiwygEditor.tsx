@@ -1081,7 +1081,16 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    targetHeading.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const editorRect = editorRef.current.getBoundingClientRect()
+    const headingRect = targetHeading.getBoundingClientRect()
+    const currentScrollTop = editorRef.current.scrollTop
+    const targetScrollTop = currentScrollTop + headingRect.top - editorRect.top
+    
+    editorRef.current.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth'
+    })
+    
     setCaretToStart(targetHeading)
     editorRef.current.focus()
   }, [jumpToHeadingIndex, jumpRequestNonce])
@@ -1994,7 +2003,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         onCompositionEnd={() => {
           isImeComposingRef.current = false
         }}
-        className="markdown-preview min-h-[300px] rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="markdown-preview min-h-[300px] max-h-[calc(100vh-120px)] overflow-y-auto rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label="WYSIWYG 编辑区"
         role="textbox"
       />

@@ -33,10 +33,20 @@ const normalizeOutlineHeadingText = (value: string): string =>
 const toOutlineHeadings = (sourceMarkdown: string): OutlineHeading[] => {
   const slugCountByText = new Map<string, number>()
   let headingIndex = 0
+  let inCodeBlock = false
 
   return sourceMarkdown
     .split('\n')
     .flatMap((line) => {
+      if (line.startsWith('```')) {
+        inCodeBlock = !inCodeBlock
+        return []
+      }
+      
+      if (inCodeBlock) {
+        return []
+      }
+      
       const headingMatch = line.match(/^(#{1,6})\s+(.+)$/)
       if (!headingMatch) {
         return []
@@ -352,7 +362,7 @@ Alice -> Bob : 回复
               当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
             </p> */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-              <aside className="rounded-lg border border-gray-200 bg-white p-3" aria-label="标题大纲">
+              <aside className="lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
                 {outlineHeadings.length > 0 ? (
                   <ul className="space-y-1" aria-label="标题大纲列表">
