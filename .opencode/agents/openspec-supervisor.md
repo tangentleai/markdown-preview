@@ -133,3 +133,21 @@ git rev-parse --short HEAD
 [RUN <run_counter>] task=<task-ref> worker_session=<session_id> result=FAIL reason=<...>
 [RUN <run_counter+1>] task=<task-ref> worker_session=<session_id> result=PASS evidence=auto_test_openspec/<change-id>/<task-ref>/
 ```
+
+### I. 循环推进（确保全流程闭环）
+子任务验收通过并完成进展记录后，**必须**返回步骤2继续调度下一个 eligible 任务，直到该需求的所有任务都完成（即 tasks.md 中所有复选框都已勾选）。
+
+循环终止条件：
+1. 所有任务均已验收通过（正常结束）
+2. 某任务达到最大重试次数且无法修复（异常停止）
+3. 用户主动中断
+
+每次循环开始前输出状态横幅：
+```
+[MONITOR] NEXT TASK | remaining=<count> | next=<task-ref>
+```
+
+全部完成后输出结束横幅：
+```
+[MONITOR] SESSION END | change=<change-id> | total_tasks=<n> | all_passed=true
+```
