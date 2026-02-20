@@ -867,7 +867,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           fontSize: 13,
           padding: { top: 12, bottom: 12 },
           tabSize: 2,
-          automaticLayout: true
+          automaticLayout: true,
+          scrollbar: {
+            vertical: 'hidden',
+            horizontal: 'hidden',
+            handleMouseWheel: false
+          }
         })
         
         const handleLanguageChange = () => {
@@ -977,6 +982,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         }
         container.addEventListener('keypress', stopPropagation)
         container.addEventListener('keyup', stopPropagation)
+        
         const dispose = () => {
           languageSelect.removeEventListener('change', handleLanguageChange)
           editorHost.removeEventListener('keydown', handleCodeBlockKeyDown)
