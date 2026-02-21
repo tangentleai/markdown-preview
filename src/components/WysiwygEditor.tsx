@@ -16,11 +16,15 @@ import {
   type FindMatchOptions,
   type TextMatchRange
 } from '../utils/findMatchEngine'
-import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import mermaid from 'mermaid'
 import { encode as encodePlantUml } from 'plantuml-encoder'
 import 'monaco-editor/min/vs/editor/editor.main.css'
+import {
+  MATH_PREVIEW_DEBOUNCE_MS,
+  renderBlockMathWithFallback,
+  renderInlineMathWithFallback
+} from '../utils/mathRendering'
 import findPreviousIcon from '../assets/iconfont/find-previous.svg'
 import findNextIcon from '../assets/iconfont/find-next.svg'
 import replaceCurrentIcon from '../assets/iconfont/replace-current.svg'
@@ -139,22 +143,6 @@ const toImageAltText = (fileName: string): string => {
   }
 
   return normalized.slice(0, extensionIndex)
-}
-
-const renderInlineMathWithFallback = (tex: string): string => {
-  try {
-    return katex.renderToString(tex, { throwOnError: true })
-  } catch {
-    return tex
-  }
-}
-
-const renderBlockMathWithFallback = (tex: string): string => {
-  try {
-    return katex.renderToString(tex, { displayMode: true, throwOnError: true })
-  } catch {
-    return tex
-  }
 }
 
 const nodeToMarkdown = (node: ChildNode): string => {
@@ -1694,7 +1682,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       status.className = 'text-xs text-gray-500 ml-auto'
       syncTimer = window.setTimeout(() => {
         flushPreviewAndMarkdown()
-      }, 150)
+      }, MATH_PREVIEW_DEBOUNCE_MS)
     })
 
     const closeEditor = (closeOptions?: { syncMarkdown?: boolean }) => {

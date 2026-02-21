@@ -50,7 +50,7 @@
         "Run: SCOPE: CLI",
         "Run: 运行性能基线脚本，采集公式连续更新的渲染耗时并与阈值比较（按既有验证包流程产出证据）。"
       ],
-      "passes": false
+      "passes": true
     },
     "R5": {
       "category": "functional",

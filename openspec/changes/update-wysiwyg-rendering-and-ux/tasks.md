@@ -23,10 +23,12 @@
   - BUNDLE (RUN #3): Implemented R3 math formula click-to-mount Monaco lifecycle (mount/sync/dismiss with single-instance guard) + GUI MCP validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0003__task-1.3__ref-R3__20260221T075402Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #3): Supervisor executed GUI MCP runbook and verified math Monaco mount/sync/dismiss lifecycle with single-instance constraint and markdown writeback on mode switch | VALIDATED: bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0003__task-1.3__ref-R3__20260221T075402Z/run.sh (server started at http://127.0.0.1:33100/) + MCP assertions (click first `.math-block` mounts one `[data-math-editor="true"]`; editing appends `\alpha`; clicking second formula keeps exactly one editor and moves mount; Escape dismiss persists `+ 1`; outside click dismiss persists `\beta`; mode switch writes back `\gamma` into dual-pane textarea) | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0003__task-1.3__ref-R3__20260221T075402Z/outputs/screenshots/01-r3-mounted-first-formula.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0003__task-1.3__ref-R3__20260221T075402Z/outputs/screenshots/02-r3-single-instance-second-formula.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0003__task-1.3__ref-R3__20260221T075402Z/outputs/screenshots/03-r3-dismiss-outside-click.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0003__task-1.3__ref-R3__20260221T075402Z/outputs/screenshots/04-r3-writeback-after-mode-switch.png
 
-- [ ] 1.4 优化数学公式渲染性能，避免连续编辑卡顿 [#R4]
+- [x] 1.4 优化数学公式渲染性能，避免连续编辑卡顿 [#R4]
   - ACCEPT: 连续输入场景下保持可编辑流畅度，采用防抖渲染；主线程长任务 `< 50ms`。
   - TEST: SCOPE: CLI
     - 运行性能基线脚本，采集公式连续更新的渲染耗时并与阈值比较（按既有验证包流程产出证据）。
+  - BUNDLE (RUN #4): Implemented R4 math rendering debounce + cached formula rendering path with CLI baseline threshold assertions for long-task budget | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0004__task-1.4__ref-R4__20260221T081502Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #4): Supervisor executed CLI validation and confirmed debounce-driven math rendering performance guard with long-task threshold assertion | VALIDATED: bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0004__task-1.4__ref-R4__20260221T081502Z/run.sh (exit=0; `should keep block math render tasks below the long-task threshold` passed at 18ms < 50ms) | RESULT: PASS | CLI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0004__task-1.4__ref-R4__20260221T081502Z/logs/run.log, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0004__task-1.4__ref-R4__20260221T081502Z/outputs/cli-math-performance.log
 
 ## 2. 表格与大纲体验优化
 
