@@ -149,6 +149,14 @@ const renderInlineMathWithFallback = (tex: string): string => {
   }
 }
 
+const renderBlockMathWithFallback = (tex: string): string => {
+  try {
+    return katex.renderToString(tex, { displayMode: true, throwOnError: true })
+  } catch {
+    return tex
+  }
+}
+
 const nodeToMarkdown = (node: ChildNode): string => {
   if (node.nodeType === Node.TEXT_NODE) {
     return (node.textContent ?? '').replace(/\u00A0/g, ' ')
@@ -201,7 +209,7 @@ const nodeToMarkdown = (node: ChildNode): string => {
 const blockToMarkdown = (element: Element): string => {
   const tagName = element.tagName
   const attr = (name: string) => (element as HTMLElement).getAttribute(name) ?? ''
-  if (attr('data-diagram-editor') === 'true') {
+  if (attr('data-diagram-editor') === 'true' || attr('data-math-editor') === 'true') {
     return ''
   }
 
@@ -530,6 +538,9 @@ const createEditorTextWalker = (editor: HTMLElement) =>
         return NodeFilter.FILTER_REJECT
       }
       if (parent.closest('[data-diagram-editor="true"]')) {
+        return NodeFilter.FILTER_REJECT
+      }
+      if (parent.closest('[data-math-editor="true"]')) {
         return NodeFilter.FILTER_REJECT
       }
       return NodeFilter.FILTER_ACCEPT
@@ -925,6 +936,11 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     >()
   )
   const monacoMountingRef = useRef(new Set<HTMLElement>())
+  const activeMathEditorRef = useRef<{
+    target: HTMLElement
+    container: HTMLElement
+    close: (options?: { syncMarkdown?: boolean }) => void
+  } | null>(null)
   const monacoThemeReadyRef = useRef(false)
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
@@ -1306,6 +1322,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
 
     if (lastSyncedMarkdownRef.current !== markdown) {
+      dismissMathEditor({ syncMarkdown: false })
       monacoEditorsRef.current.forEach((instance) => {
         instance.dispose()
       })
@@ -1319,6 +1336,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
   useEffect(() => {
     return () => {
+      dismissMathEditor({ syncMarkdown: true })
       monacoEditorsRef.current.forEach((instance) => {
         instance.dispose()
       })
@@ -1566,6 +1584,157 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     if (nextMarkdown !== markdownRef.current) {
       setMarkdown(nextMarkdown)
     }
+  }
+
+  const applyMathPreview = (target: HTMLElement, tex: string) => {
+    target.setAttribute('data-tex', tex)
+    target.innerHTML = renderBlockMathWithFallback(tex)
+  }
+
+  const dismissMathEditor = (options?: { syncMarkdown?: boolean }) => {
+    const active = activeMathEditorRef.current
+    if (!active) {
+      return
+    }
+    activeMathEditorRef.current = null
+    active.close(options)
+  }
+
+  const openMathEditorInline = async (target: HTMLElement) => {
+    if (!editorRef.current) {
+      return
+    }
+
+    const activeMath = activeMathEditorRef.current
+    if (activeMath?.target === target) {
+      return
+    }
+    if (activeMath) {
+      dismissMathEditor({ syncMarkdown: true })
+    }
+
+    const host = editorRef.current
+    const existingDiagramEditor = host.querySelector('[data-diagram-editor="true"]') as HTMLElement | null
+    if (existingDiagramEditor) {
+      existingDiagramEditor.remove()
+      syncMarkdownFromEditor()
+    }
+
+    const monaco = await loadMonaco()
+    ensureMonacoTheme(monaco)
+
+    const container = document.createElement('div')
+    container.setAttribute('data-math-editor', 'true')
+    container.setAttribute('contenteditable', 'false')
+    container.className = 'wysiwyg-code-block wysiwyg-code-block-mounted mb-2'
+
+    const header = document.createElement('div')
+    header.className = 'wysiwyg-code-header'
+    const label = document.createElement('span')
+    label.className = 'wysiwyg-code-language-select'
+    label.style.cursor = 'default'
+    label.textContent = 'LaTeX'
+    const status = document.createElement('span')
+    status.className = 'text-xs text-gray-500 ml-auto'
+    status.textContent = '同步中'
+    header.append(label, status)
+
+    const editorHost = document.createElement('div')
+    editorHost.className = 'wysiwyg-monaco-host'
+
+    container.append(header, editorHost)
+    target.parentElement?.insertBefore(container, target)
+
+    const editor = monaco.editor.create(editorHost, {
+      value: target.getAttribute('data-tex') ?? '',
+      language: 'markdown',
+      theme: 'wysiwyg-light',
+      lineNumbers: 'on',
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      wordWrap: 'on',
+      fontSize: 13,
+      padding: { top: 12, bottom: 12 },
+      tabSize: 2,
+      automaticLayout: true
+    })
+
+    editorHost.querySelectorAll('textarea').forEach((textarea) => {
+      textarea.setAttribute('aria-label', '数学公式编辑区')
+    })
+
+    const resizeObserver = new ResizeObserver(() => {
+      editor.layout()
+    })
+    resizeObserver.observe(editorHost)
+
+    const updateHeight = () => {
+      const contentHeight = editor.getContentHeight()
+      editorHost.style.height = `${contentHeight}px`
+      editor.layout()
+    }
+    updateHeight()
+    const sizeListener = editor.onDidContentSizeChange(updateHeight)
+
+    let syncTimer: number | null = null
+
+    const flushPreviewAndMarkdown = () => {
+      const value = editor.getValue()
+      applyMathPreview(target, value)
+      status.textContent = '已同步'
+      status.className = 'text-xs text-emerald-600 ml-auto'
+      syncMarkdownFromEditor()
+    }
+
+    const changeListener = editor.onDidChangeModelContent(() => {
+      if (syncTimer !== null) {
+        window.clearTimeout(syncTimer)
+      }
+      status.textContent = '同步中'
+      status.className = 'text-xs text-gray-500 ml-auto'
+      syncTimer = window.setTimeout(() => {
+        flushPreviewAndMarkdown()
+      }, 150)
+    })
+
+    const closeEditor = (closeOptions?: { syncMarkdown?: boolean }) => {
+      if (syncTimer !== null) {
+        window.clearTimeout(syncTimer)
+        syncTimer = null
+      }
+      const shouldSyncMarkdown = closeOptions?.syncMarkdown !== false
+      applyMathPreview(target, editor.getValue())
+      resizeObserver.disconnect()
+      sizeListener.dispose()
+      changeListener.dispose()
+      editorHost.removeEventListener('keydown', handleMathEditorKeyDown)
+      editor.dispose()
+      container.remove()
+      if (shouldSyncMarkdown) {
+        syncMarkdownFromEditor()
+      }
+      setCaretToStart(target)
+      editorRef.current?.focus({ preventScroll: true })
+      if (activeMathEditorRef.current?.container === container) {
+        activeMathEditorRef.current = null
+      }
+    }
+
+    const handleMathEditorKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeEditor({ syncMarkdown: true })
+      }
+    }
+    editorHost.addEventListener('keydown', handleMathEditorKeyDown)
+
+    activeMathEditorRef.current = {
+      target,
+      container,
+      close: closeEditor
+    }
+    editor.focus()
   }
 
   const handleReplaceCurrent = () => {
@@ -1895,6 +2064,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     })
     monacoEditorsRef.current.clear()
     monacoMountingRef.current.clear()
+    dismissMathEditor({ syncMarkdown: false })
 
     const snapshotMarkdown = direction === 'undo' ? transaction.beforeMarkdown : transaction.afterMarkdown
     const snapshotHtml = direction === 'undo' ? transaction.beforeHtml : transaction.afterHtml
@@ -2467,12 +2637,25 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const handleEditorClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!editorRef.current) return
     const targetElement = event.target as HTMLElement
+    const activeMathEditor = activeMathEditorRef.current
+    if (activeMathEditor && activeMathEditor.container.contains(targetElement)) {
+      return
+    }
+
+    const mathBlock = targetElement.closest('.math-block') as HTMLElement | null
+    if (mathBlock) {
+      event.stopPropagation()
+      void openMathEditorInline(mathBlock)
+      return
+    }
+
     const inlineEditor = editorRef.current.querySelector('[data-diagram-editor="true"]') as HTMLElement | null
     if (inlineEditor && inlineEditor.contains(targetElement)) {
       return
     }
     const diagram = targetElement.closest('.mermaid, .plantuml-container') as HTMLElement | null
     if (diagram) {
+      dismissMathEditor({ syncMarkdown: true })
       event.stopPropagation()
       const isMermaid = diagram.classList.contains('mermaid')
       if (isMermaid) {
@@ -2506,6 +2689,9 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
       inlineEditor.remove()
       syncMarkdownFromEditor()
+    }
+    if (activeMathEditorRef.current) {
+      dismissMathEditor({ syncMarkdown: true })
     }
   }
 

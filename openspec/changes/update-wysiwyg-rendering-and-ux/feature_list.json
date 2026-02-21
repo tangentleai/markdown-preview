@@ -38,7 +38,7 @@
         "Run: SCOPE: GUI",
         "Run: 依据 Mermaid/PlantUML `mountMonacoEditors` 生命周期验证 mount/sync/dismiss 全链路。"
       ],
-      "passes": false
+      "passes": true
     },
     "R4": {
       "category": "functional",
