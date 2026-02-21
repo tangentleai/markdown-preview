@@ -87,7 +87,7 @@
         "Run: SCOPE: GUI",
         "Run: 在多级长标题文档中验证换行、大纲层级与定位跳转准确性。"
       ],
-      "passes": false
+      "passes": true
     },
     "R8": {
       "category": "functional",

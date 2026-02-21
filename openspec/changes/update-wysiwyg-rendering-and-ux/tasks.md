@@ -47,10 +47,12 @@
   - BUNDLE (RUN #6): Implemented R6 table horizontal-scroll icon hint with dynamic state updates (`start`/`middle`/`end`) and GUI MCP validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0006__task-2.2__ref-R6__20260221T084140Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #6): Supervisor executed GUI MCP validation and confirmed icon hint presence with scroll-state transitions start->middle->end on overflow table wrapper | VALIDATED: bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0006__task-2.2__ref-R6__20260221T084140Z/run.sh (server started at http://127.0.0.1:33100/) + MCP assertions (viewport narrowed to 700px to induce overflow; wrapper+hint present with initial `data-table-scroll-hint-state=start`; middle scroll produced `state=middle`; far-right scroll produced `state=end`) | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0006__task-2.2__ref-R6__20260221T084140Z/outputs/screenshots/01-r6-initial-start-state.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0006__task-2.2__ref-R6__20260221T084140Z/outputs/screenshots/02-r6-middle-state.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0006__task-2.2__ref-R6__20260221T084140Z/outputs/screenshots/03-r6-end-state.png
 
-- [ ] 2.3 将左侧标题大纲长标题改为自动换行并优化可读性 [#R7]
+- [x] 2.3 将左侧标题大纲长标题改为自动换行并优化可读性 [#R7]
   - ACCEPT: 长标题最多显示 3 行并可读；多行标题具备合理行高、间距与点击区域；层级缩进仍清晰可辨。
   - TEST: SCOPE: GUI
     - 在多级长标题文档中验证换行、大纲层级与定位跳转准确性。
+  - BUNDLE (RUN #7): Implemented R7 outline long-title wrapping (max 3 lines) with improved multiline readability and clearer level indentation plus GUI MCP validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0007__task-2.3__ref-R7__20260221T090742Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #7): Supervisor executed GUI MCP validation and confirmed outline long-title wrapping/readability plus heading-level indentation and jump accuracy | VALIDATED: bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0007__task-2.3__ref-R7__20260221T090742Z/run.sh (server started at http://127.0.0.1:33100/) + MCP assertions (`标题大纲列表` exists; long H2 style `-webkit-line-clamp=3`, `line-height=20px`, `padding-top/bottom=6px`; indentation `H1=12px`, `H2=26px`, `H3=40px`; clicking H3 outline item moves selection anchor into matched h3 and heading is in viewport) | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0007__task-2.3__ref-R7__20260221T090742Z/outputs/screenshots/01-r7-outline-wrapped-headings.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0007__task-2.3__ref-R7__20260221T090742Z/outputs/screenshots/02-r7-outline-jump-target.png
 
 ## 3. 布局与响应式联动
 

@@ -865,20 +865,25 @@ describe('App component', () => {
   })
   it('should generate outline from H1-H6 in real time and jump to selected heading', () => {
     render(<App />)
+    const longSecondaryHeading = '二级标题用于验证左侧大纲在超长文本下能够自动换行并保持三行以内可读显示'
 
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     fireEvent.change(textarea, {
       target: {
-        value: '# 一级标题\n\n正文段落\n\n## 二级标题\n\n### 三级标题\n\n普通内容'
+        value: `# 一级标题\n\n正文段落\n\n## ${longSecondaryHeading}\n\n### 三级标题\n\n普通内容`
       }
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     expect(screen.getByRole('button', { name: '一级标题' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '二级标题' })).toBeTruthy()
+    const longHeadingButton = screen.getByRole('button', { name: longSecondaryHeading })
+    expect(longHeadingButton).toBeTruthy()
     expect(screen.getByRole('button', { name: '三级标题' })).toBeTruthy()
+    expect(longHeadingButton.style.paddingLeft).toBe('26px')
+    expect(screen.getByRole('button', { name: '三级标题' }).style.paddingLeft).toBe('40px')
+    expect(longHeadingButton.querySelector('span')?.getAttribute('style')).toContain('-webkit-line-clamp: 3')
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
     const h3 = editor.querySelector('h3') as HTMLElement

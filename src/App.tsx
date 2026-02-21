@@ -365,7 +365,7 @@ Alice -> Bob : 回复
               <aside className="lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
                 {outlineHeadings.length > 0 ? (
-                  <ul className="space-y-1" aria-label="标题大纲列表">
+                  <ul className="space-y-1.5" aria-label="标题大纲列表">
                     {outlineHeadings.map((heading) => (
                       <li key={heading.id}>
                         <button
@@ -374,10 +374,21 @@ Alice -> Bob : 回复
                             setJumpToHeadingIndex(heading.index)
                             setJumpRequestNonce((current) => current + 1)
                           }}
-                          className="w-full truncate rounded px-2 py-1 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-                          style={{ paddingLeft: `${heading.level * 10}px` }}
+                          className="w-full rounded px-2 py-1.5 text-left text-sm leading-5 text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                          style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
                         >
-                          {heading.text}
+                          <span
+                            className="block"
+                            style={{
+                              display: '-webkit-box',
+                              WebkitBoxOrient: 'vertical',
+                              WebkitLineClamp: 3,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                          >
+                            {heading.text}
+                          </span>
                         </button>
                       </li>
                     ))}
