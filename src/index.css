@@ -219,3 +219,40 @@ code {
   border-style: solid;
   border-color: #0f172a transparent transparent transparent;
 }
+
+.wysiwyg-table-toolbar {
+  position: fixed;
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.wysiwyg-table-toolbar.is-visible {
+  pointer-events: auto;
+}
+
+.wysiwyg-table-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: #ffffff;
+  color: #334155;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.wysiwyg-table-toolbar-btn:hover {
+  background: #f8fafc;
+  border-color: rgba(71, 85, 105, 0.55);
+}

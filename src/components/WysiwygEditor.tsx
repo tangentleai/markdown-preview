@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { markdownToEditableHtml } from '../utils/markdownDocumentModel'
 import {
   BlockInputRuleUndoStack,
@@ -34,6 +34,9 @@ import closeSearchIcon from '../assets/iconfont/close-search.svg'
 import caseSensitiveIcon from '../assets/iconfont/case-sensitive.svg'
 import wholeWordIcon from '../assets/iconfont/whole-word.svg'
 import regexModeIcon from '../assets/iconfont/regex-mode.svg'
+import tableToolbarAnchorIcon from '../assets/iconfont/table-toolbar-anchor.svg'
+import tableToolbarAlignLeftIcon from '../assets/iconfont/table-toolbar-align-left.svg'
+import tableToolbarCloseIcon from '../assets/iconfont/table-toolbar-close.svg'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -43,6 +46,7 @@ interface WysiwygEditorProps {
 }
 
 type IconButtonInteractionState = 'default' | 'hover' | 'active'
+type TableToolbarPlacement = 'top' | 'bottom'
 
 const ICON_BUTTON_TOOLTIPS: Record<string, string> = {
   close: '关闭查找替换工具栏',
@@ -931,6 +935,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     close: (options?: { syncMarkdown?: boolean }) => void
   } | null>(null)
   const monacoThemeReadyRef = useRef(false)
+  const tableToolbarRef = useRef<HTMLDivElement>(null)
+  const activeTableRef = useRef<HTMLTableElement | null>(null)
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
   const [isCaseSensitiveFind, setIsCaseSensitiveFind] = useState(false)
@@ -943,7 +949,73 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [findToolbarMode, setFindToolbarMode] = useState<'find' | 'replace'>('find')
   const [iconButtonStates, setIconButtonStates] = useState<Record<string, IconButtonInteractionState>>({})
   const [visibleTooltipButtonId, setVisibleTooltipButtonId] = useState<string | null>(null)
+  const [showTableToolbar, setShowTableToolbar] = useState(false)
+  const [tableToolbarPlacement, setTableToolbarPlacement] = useState<TableToolbarPlacement>('top')
+  const [tableToolbarStyle, setTableToolbarStyle] = useState<React.CSSProperties>({
+    left: '-9999px',
+    top: '-9999px',
+    opacity: 0
+  })
   const longPressTimerRef = useRef<number | null>(null)
+
+  const closeTableToolbar = useCallback(() => {
+    activeTableRef.current = null
+    setShowTableToolbar(false)
+    setTableToolbarStyle({
+      left: '-9999px',
+      top: '-9999px',
+      opacity: 0
+    })
+  }, [])
+
+  const positionTableToolbar = useCallback(() => {
+    if (!showTableToolbar || !activeTableRef.current || !tableToolbarRef.current) {
+      return
+    }
+
+    const tableRect = activeTableRef.current.getBoundingClientRect()
+    const toolbarRect = tableToolbarRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const marginPx = 8
+    const offsetPx = 10
+
+    let left = tableRect.left + tableRect.width / 2 - toolbarRect.width / 2
+    left = Math.min(Math.max(left, marginPx), Math.max(marginPx, viewportWidth - toolbarRect.width - marginPx))
+
+    let nextPlacement: TableToolbarPlacement = 'top'
+    let top = tableRect.top - toolbarRect.height - offsetPx
+    if (top < marginPx) {
+      nextPlacement = 'bottom'
+      top = tableRect.bottom + offsetPx
+    }
+    if (nextPlacement === 'bottom' && top + toolbarRect.height > viewportHeight - marginPx) {
+      top = Math.max(marginPx, viewportHeight - toolbarRect.height - marginPx)
+    }
+
+    setTableToolbarPlacement(nextPlacement)
+    setTableToolbarStyle({
+      left: `${left}px`,
+      top: `${top}px`,
+      opacity: 1
+    })
+  }, [showTableToolbar])
+
+  const openTableToolbarForTable = useCallback(
+    (table: HTMLTableElement | null) => {
+      if (!table) {
+        closeTableToolbar()
+        return
+      }
+
+      activeTableRef.current = table
+      setShowTableToolbar(true)
+      window.requestAnimationFrame(() => {
+        positionTableToolbar()
+      })
+    },
+    [closeTableToolbar, positionTableToolbar]
+  )
 
   const getFindOptions = (): FindMatchOptions =>
     resolveFindOptions({
@@ -1459,6 +1531,108 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       setIsWholeWordFind(false)
     }
   }, [isRegexFind, isWholeWordFind])
+
+  useEffect(() => {
+    if (!showTableToolbar) {
+      return
+    }
+
+    const activeTable = activeTableRef.current
+    if (!activeTable || !activeTable.isConnected) {
+      closeTableToolbar()
+      return
+    }
+
+    positionTableToolbar()
+  }, [closeTableToolbar, markdown, positionTableToolbar, showTableToolbar])
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const editor = editorRef.current
+      if (!editor) {
+        return
+      }
+
+      const selection = window.getSelection()
+      if (!selection || selection.rangeCount === 0) {
+        closeTableToolbar()
+        return
+      }
+
+      const anchorNode = selection.anchorNode
+      if (!anchorNode || !editor.contains(anchorNode)) {
+        closeTableToolbar()
+        return
+      }
+
+      const anchorElement =
+        anchorNode.nodeType === Node.ELEMENT_NODE ? (anchorNode as Element) : anchorNode.parentElement
+      const table = anchorElement?.closest('table') as HTMLTableElement | null
+
+      if (table) {
+        openTableToolbarForTable(table)
+        return
+      }
+
+      closeTableToolbar()
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange)
+    }
+  }, [closeTableToolbar, openTableToolbarForTable])
+
+  useEffect(() => {
+    if (!showTableToolbar) {
+      return
+    }
+
+    const handleViewportChange = () => {
+      positionTableToolbar()
+    }
+
+    const handleOutsidePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (!target) {
+        return
+      }
+
+      const toolbarElement = tableToolbarRef.current
+      if (toolbarElement?.contains(target)) {
+        return
+      }
+
+      const targetElement = target instanceof Element ? target : target.parentElement
+      const table = targetElement?.closest('table') as HTMLTableElement | null
+      if (table) {
+        openTableToolbarForTable(table)
+        return
+      }
+
+      closeTableToolbar()
+    }
+
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return
+      }
+
+      closeTableToolbar()
+    }
+
+    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('scroll', handleViewportChange, true)
+    document.addEventListener('mousedown', handleOutsidePointerDown, true)
+    window.addEventListener('keydown', handleWindowKeyDown)
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('scroll', handleViewportChange, true)
+      document.removeEventListener('mousedown', handleOutsidePointerDown, true)
+      window.removeEventListener('keydown', handleWindowKeyDown)
+    }
+  }, [closeTableToolbar, openTableToolbarForTable, positionTableToolbar, showTableToolbar])
 
   const handleInput = () => {
     if (!editorRef.current) {
@@ -2108,6 +2282,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
+    if (event.key === 'Escape' && showTableToolbar) {
+      event.preventDefault()
+      closeTableToolbar()
+      return
+    }
+
     if (event.key === 'Tab' && !imeComposingNow) {
       const selection = window.getSelection()
       if (selection && selection.isCollapsed && selection.rangeCount > 0) {
@@ -2705,6 +2885,14 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     if (activeMathEditorRef.current) {
       dismissMathEditor({ syncMarkdown: true })
     }
+
+    const table = targetElement.closest('table') as HTMLTableElement | null
+    if (table) {
+      openTableToolbarForTable(table)
+      return
+    }
+
+    closeTableToolbar()
   }
 
   return (
@@ -2918,6 +3106,33 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             {findResultCount === 0 ? '0/N' : `${activeFindIndex + 1}/${findResultCount}`}
           </span>
         </div>
+        </div>
+      <div
+        ref={tableToolbarRef}
+        aria-label="表格悬浮工具栏"
+        aria-hidden={!showTableToolbar}
+        data-table-toolbar="true"
+        data-table-toolbar-placement={tableToolbarPlacement}
+        className={`wysiwyg-table-toolbar ${showTableToolbar ? 'is-visible' : ''}`}
+        style={tableToolbarStyle}
+        onMouseDown={(event) => {
+          event.preventDefault()
+        }}
+      >
+        <button type="button" className="wysiwyg-table-toolbar-btn" aria-label="表格操作入口">
+          <img src={tableToolbarAnchorIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+        </button>
+        <button type="button" className="wysiwyg-table-toolbar-btn" aria-label="表格左对齐">
+          <img src={tableToolbarAlignLeftIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className="wysiwyg-table-toolbar-btn"
+          aria-label="关闭表格工具栏"
+          onClick={closeTableToolbar}
+        >
+          <img src={tableToolbarCloseIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+        </button>
       </div>
       <div
         ref={editorRef}
