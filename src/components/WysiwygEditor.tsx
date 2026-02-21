@@ -2935,7 +2935,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         onCompositionEnd={() => {
           isImeComposingRef.current = false
         }}
-        className="markdown-preview min-h-[300px] rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="markdown-preview min-h-[300px] rounded border border-gray-200 transition-shadow focus:outline-none focus:shadow-[0_0_0_1px_rgba(148,163,184,0.7),0_10px_24px_rgba(15,23,42,0.12)]"
         aria-label="WYSIWYG 编辑区"
         role="textbox"
       />

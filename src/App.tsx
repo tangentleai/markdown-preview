@@ -148,6 +148,7 @@ Alice -> Bob : 回复
   const [jumpRequestNonce, setJumpRequestNonce] = useState(0)
   const [outlineWidth, setOutlineWidth] = useState<number>(OUTLINE_WIDTH_DEFAULT)
   const [isOutlineResizing, setIsOutlineResizing] = useState<boolean>(false)
+  const [isOutlineDrawerOpen, setIsOutlineDrawerOpen] = useState<boolean>(false)
   const openFileInputRef = useRef<HTMLInputElement>(null)
   const outlineResizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
 
@@ -354,6 +355,12 @@ Alice -> Bob : 回复
   const saveButtonLabel = useMemo(() => (isDirty ? '保存*' : '保存'), [isDirty])
   const outlineHeadings = useMemo(() => toOutlineHeadings(markdown), [markdown])
 
+  useEffect(() => {
+    if (editorMode !== 'wysiwyg' && isOutlineDrawerOpen) {
+      setIsOutlineDrawerOpen(false)
+    }
+  }, [editorMode, isOutlineDrawerOpen])
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow-sm">
@@ -435,15 +442,82 @@ Alice -> Bob : 回复
           </div>
         ) : (
           <div className="space-y-3">
+            <div className="lg:hidden px-1">
+              <button
+                type="button"
+                onClick={() => setIsOutlineDrawerOpen(true)}
+                className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                aria-label="打开移动端大纲抽屉"
+                aria-expanded={isOutlineDrawerOpen}
+              >
+                大纲
+              </button>
+            </div>
             {/* <p className="text-sm text-gray-600 px-1">
               当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
             </p> */}
+            {isOutlineDrawerOpen ? (
+              <div className="fixed inset-0 z-40 lg:hidden" aria-label="移动端标题大纲抽屉">
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-gray-900/35"
+                  onClick={() => setIsOutlineDrawerOpen(false)}
+                  aria-label="关闭移动端大纲抽屉遮罩"
+                />
+                <aside className="absolute left-0 top-0 h-full w-[82%] max-w-xs border-r border-gray-200 bg-white p-3 shadow-xl overflow-y-auto" aria-label="移动端标题大纲">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-800">标题大纲</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsOutlineDrawerOpen(false)}
+                      className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                      aria-label="关闭移动端大纲抽屉"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                  {outlineHeadings.length > 0 ? (
+                    <ul className="space-y-1.5" aria-label="标题大纲列表">
+                      {outlineHeadings.map((heading) => (
+                        <li key={heading.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setJumpToHeadingIndex(heading.index)
+                              setJumpRequestNonce((current) => current + 1)
+                              setIsOutlineDrawerOpen(false)
+                            }}
+                            className="w-full rounded px-2 py-1.5 text-left text-sm leading-5 text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                            style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
+                          >
+                            <span
+                              className="block"
+                              style={{
+                                display: '-webkit-box',
+                                WebkitBoxOrient: 'vertical',
+                                WebkitLineClamp: 3,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                            >
+                              {heading.text}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">当前文档暂无 H1-H6 标题</p>
+                  )}
+                </aside>
+              </div>
+            ) : null}
             <div
               className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--outline-width)_10px_minmax(0,1fr)]"
               aria-label="大纲与编辑区联动布局"
               style={{ '--outline-width': `${outlineWidth}px` } as React.CSSProperties}
             >
-              <aside className="lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
+              <aside className="hidden lg:block lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
                 {outlineHeadings.length > 0 ? (
                   <ul className="space-y-1.5" aria-label="标题大纲列表">
@@ -454,6 +528,7 @@ Alice -> Bob : 回复
                           onClick={() => {
                             setJumpToHeadingIndex(heading.index)
                             setJumpRequestNonce((current) => current + 1)
+                            setIsOutlineDrawerOpen(false)
                           }}
                           className="w-full rounded px-2 py-1.5 text-left text-sm leading-5 text-gray-700 hover:bg-blue-50 hover:text-blue-700"
                           style={{ paddingLeft: `${12 + (heading.level - 1) * 14}px` }}
