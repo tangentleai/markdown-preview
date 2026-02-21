@@ -122,7 +122,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证图标渲染、交互态与可访问性名称。"
       ],
-      "passes": false
+      "passes": true
     }
   }
 }
