@@ -109,6 +109,14 @@ CLI任务验收命令：
 - Unix: `bash auto_test_openspec/<change-id>/<task-ref>/run.sh`
 - Windows: `bash auto_test_openspec/<change-id>/<task-ref>/run.bat`
 
+GUI任务验收流程：
+1. **关闭旧浏览器实例**：调用 `mcp_Playwright_playwright_close` 工具优雅关闭浏览器
+   - 注意：不要使用 `pkill` 强制终止，会导致 macOS 弹出"系统可能不会保存您所作的更改"提示
+2. **启动服务**：执行 `run.sh`/`run.bat` 启动被测服务
+3. **执行 MCP 验证**：按照 `tests/gui_runbook_*.md` 中的步骤执行验证
+4. **收集证据**：截图保存到 `outputs/screenshots/`
+5. **关闭浏览器**：再次调用 `mcp_Playwright_playwright_close` 关闭浏览器
+
 ### G. 验收通过后的记账顺序（不可打乱）
 1. 勾选`tasks.md`对应复选框
 2. 在`tasks.md`补充EVIDENCE行（命令、结果、时间、产物路径）
