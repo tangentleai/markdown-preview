@@ -1,0 +1,2 @@
+[RUN 0] task=INIT worker_session=N/A result=INFO note=session initialized by supervisor
+[RUN 1] task=1.1-R1 worker_session=ses_381a5ab8dffe9zEpwLXoUalgp4 result=PASS evidence=auto_test_openspec/update-wysiwyg-searchbar-sticky-tooltips/run-0001__task-1.1__ref-R1__20260221T040105Z/
