@@ -25,6 +25,7 @@ import {
   renderBlockMathWithFallback,
   renderInlineMathWithFallback
 } from '../utils/mathRendering'
+import { syncOverflowTableScrollviews } from '../utils/wysiwygTableOverflow'
 import findPreviousIcon from '../assets/iconfont/find-previous.svg'
 import findNextIcon from '../assets/iconfont/find-next.svg'
 import replaceCurrentIcon from '../assets/iconfont/replace-current.svg'
@@ -1320,7 +1321,30 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       lastSyncedMarkdownRef.current = markdown
     }
     void mountMonacoEditors()
+    syncOverflowTableScrollviews(editorRef.current)
   }, [markdown])
+
+  useEffect(() => {
+    if (!editorRef.current) {
+      return
+    }
+    const editor = editorRef.current
+    const syncTables = () => {
+      syncOverflowTableScrollviews(editor)
+    }
+    syncTables()
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(syncTables)
+      observer.observe(editor)
+      return () => {
+        observer.disconnect()
+      }
+    }
+    window.addEventListener('resize', syncTables)
+    return () => {
+      window.removeEventListener('resize', syncTables)
+    }
+  }, [])
 
   useEffect(() => {
     return () => {

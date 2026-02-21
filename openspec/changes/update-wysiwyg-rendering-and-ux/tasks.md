@@ -32,11 +32,13 @@
 
 ## 2. 表格与大纲体验优化
 
-- [ ] 2.1 实现表格溢出自动检测并包裹横向滚动容器 [#R5]
+- [x] 2.1 实现表格溢出自动检测并包裹横向滚动容器 [#R5]
   - ACCEPT: 表格宽度超出可视区域时自动进入 scrollview，横向滚动可用且不影响表格内部纵向滚动。
   - TEST: SCOPE: MIXED
     - CLI: 覆盖 overflow 判定与容器包裹逻辑单元测试。
     - GUI: 通过宽表格验证横纵滚动行为互不冲突。
+  - BUNDLE (RUN #5): Implemented R5 overflow-aware table detection and auto-wrap scrollview container behavior with mixed validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #5): Supervisor executed MIXED validation and confirmed overflow table auto-wrap with horizontal scroll while preserving vertical cell scrolling interactions | VALIDATED: bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/tests/test_cli_table_overflow.sh (exit=0); bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/run.sh (server started at http://127.0.0.1:33100/) + MCP assertions (wrapper `div[data-table-scrollview="true"]` exists when editor width narrowed to 700px; wrapper `scrollLeft` advanced to 738 after horizontal scroll; target cell `scrollTop` advanced to 450 after vertical scroll; wrapper persisted after vertical interaction) | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/outputs/screenshots/01-table-overflow-initial.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/outputs/screenshots/02-table-overflow-scrolled-right.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/outputs/screenshots/03-table-inner-vertical-scroll.png | CLI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/outputs/cli-table-overflow.log
 
 - [ ] 2.2 为可横向滚动表格提供视觉提示 [#R6]
   - ACCEPT: 用户可感知表格存在横向隐藏内容，使用图标提示且在滚动后状态可更新。

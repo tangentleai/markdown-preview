@@ -63,7 +63,7 @@
         "Run: CLI: 覆盖 overflow 判定与容器包裹逻辑单元测试。",
         "Run: GUI: 通过宽表格验证横纵滚动行为互不冲突。"
       ],
-      "passes": false
+      "passes": true
     },
     "R6": {
       "category": "functional",
