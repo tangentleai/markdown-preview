@@ -26,7 +26,7 @@
         "Run: CLI: 执行公式渲染测试，覆盖成功路径与错误回退路径。",
         "Run: GUI: 在不同屏幕宽度下验证公式清晰度、比例与无失真显示；失败公式回退为原始 LaTeX 文本。"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",

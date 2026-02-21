@@ -141,6 +141,14 @@ const toImageAltText = (fileName: string): string => {
   return normalized.slice(0, extensionIndex)
 }
 
+const renderInlineMathWithFallback = (tex: string): string => {
+  try {
+    return katex.renderToString(tex, { throwOnError: true })
+  } catch {
+    return tex
+  }
+}
+
 const nodeToMarkdown = (node: ChildNode): string => {
   if (node.nodeType === Node.TEXT_NODE) {
     return (node.textContent ?? '').replace(/\u00A0/g, ' ')
@@ -793,7 +801,7 @@ const createInlineElement = (match: InlineStyleRuleMatch): HTMLElement => {
       const wrapper = document.createElement('span')
       wrapper.setAttribute('class', 'math-inline')
       wrapper.setAttribute('data-tex', match.content)
-      wrapper.innerHTML = katex.renderToString(match.content, { throwOnError: false })
+      wrapper.innerHTML = renderInlineMathWithFallback(match.content)
       return wrapper
     }
     default: {
@@ -960,12 +968,19 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           /^([-*+])\s+/.test(l) ||
           /^\d+\.\s+/.test(l) ||
           /^```/.test(l) ||
-          /^\$\$\s*$/.test(l)
+          /^\$\$\s*$/.test(l) ||
+          /^\\\[\s*$/.test(l) ||
+          /^\\\]\s*$/.test(l)
       )
     ) {
       return true
     }
-    if (/\*\*[^*]+\*\*/.test(value) || /\*[^*]+\*/.test(value) || /`[^`]+`/.test(value)) {
+    if (
+      /\*\*[^*]+\*\*/.test(value) ||
+      /\*[^*]+\*/.test(value) ||
+      /`[^`]+`/.test(value) ||
+      /\\\((?:\\.|[^\\\n])+\\\)/.test(value)
+    ) {
       return true
     }
     if (/\[[^\]]+\]\([^)]+\)/.test(value) || /!\[[^\]]*\]\([^)]+\)/.test(value)) {

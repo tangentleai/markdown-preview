@@ -30,9 +30,17 @@ const escapeHtml = (value: string): string =>
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
 
+const renderMathWithFallback = (tex: string, displayMode = false): string => {
+  try {
+    return katex.renderToString(tex, { throwOnError: true, displayMode })
+  } catch {
+    return escapeHtml(tex)
+  }
+}
+
 const parseInline = (value: string): InlineNode[] => {
   const nodes: InlineNode[] = []
-  const pattern = /(!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|(?<!\$)\$[^$\n]+\$(?!\$))/g
+  const pattern = /(!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|(?<!\$)\$[^$\n]+\$(?!\$)|\\\((?:\\.|[^\\\n])+\\\))/g
   let lastIndex = 0
 
   for (const match of value.matchAll(pattern)) {
@@ -61,6 +69,8 @@ const parseInline = (value: string): InlineNode[] => {
       nodes.push({ type: 'em', children: parseInline(token.slice(1, -1)) })
     } else if (token.startsWith('$') && token.endsWith('$')) {
       nodes.push({ type: 'mathInline', tex: token.slice(1, -1) })
+    } else if (token.startsWith('\\(') && token.endsWith('\\)')) {
+      nodes.push({ type: 'mathInline', tex: token.slice(2, -2) })
     }
 
     lastIndex = index + token.length
@@ -102,6 +112,8 @@ const splitTableRow = (line: string): string[] =>
 
 const isFencedCodeStart = (line: string): boolean => /^```/.test(line.trim())
 const isBlockMathDelimiter = (line: string): boolean => /^\$\$\s*$/.test(line.trim())
+const isBracketBlockMathStart = (line: string): boolean => /^\\\[\s*$/.test(line.trim())
+const isBracketBlockMathEnd = (line: string): boolean => /^\\\]\s*$/.test(line.trim())
 
 const isHeading = (line: string): boolean => /^(#{1,6})\s+/.test(line.trim())
 const isHorizontalRule = (line: string): boolean => /^(?:-{3,}|(?:-\s+){2,}-)\s*$/.test(line.trim())
@@ -160,6 +172,33 @@ const parseMarkdownLines = (lines: string[]): BlockNode[] => {
         type: 'mathBlock',
         tex: mathLines.join('\n').replace(/\n+$/, '')
       })
+      continue
+    }
+
+    if (isBracketBlockMathStart(trimmed)) {
+      const mathLines: string[] = []
+      index += 1
+      while (index < lines.length && !isBracketBlockMathEnd(lines[index].trim())) {
+        mathLines.push(lines[index])
+        index += 1
+      }
+      if (index < lines.length) {
+        index += 1
+      }
+      blocks.push({
+        type: 'mathBlock',
+        tex: mathLines.join('\n').replace(/\n+$/, '')
+      })
+      continue
+    }
+
+    const inlineBracketMathMatch = trimmed.match(/^\\\[(.*)\\\]$/)
+    if (inlineBracketMathMatch) {
+      blocks.push({
+        type: 'mathBlock',
+        tex: inlineBracketMathMatch[1].trim()
+      })
+      index += 1
       continue
     }
 
@@ -294,6 +333,8 @@ const inlineNodeToMarkdown = (node: InlineNode): string => {
       return `[${node.children.map(inlineNodeToMarkdown).join('')}](${node.href})`
     case 'image':
       return `![${escapeMarkdownText(node.alt)}](${node.src})`
+    case 'mathInline':
+      return `\\(${node.tex}\\)`
     default:
       return ''
   }
@@ -325,6 +366,8 @@ const blockNodeToMarkdown = (node: BlockNode): string => {
       const header = language ? `\`\`\`${language}` : '```'
       return `${header}\n${node.code}\n\`\`\``
     }
+    case 'mathBlock':
+      return `\\[\n${node.tex}\n\\]`
     case 'table': {
       const toRow = (row: InlineNode[][]): string => `| ${row.map((cell) => cell.map(inlineNodeToMarkdown).join('')).join(' | ')} |`
       const delimiter = `| ${node.header.map(() => '---').join(' | ')} |`
@@ -362,7 +405,7 @@ const inlineNodeToHtml = (node: InlineNode): string => {
       return `<img src="${escapeHtml(node.src)}" alt="${escapeHtml(node.alt)}" />`
     case 'mathInline': {
       const tex = node.tex
-      const rendered = katex.renderToString(tex, { throwOnError: false })
+      const rendered = renderMathWithFallback(tex)
       return `<span class="math-inline" data-tex="${escapeHtml(tex)}">${rendered}</span>`
     }
     default:
@@ -403,7 +446,7 @@ const blockNodeToHtml = (node: BlockNode): string => {
       )}" contenteditable="false"><pre class="wysiwyg-code-fallback"><code>${escapeHtml(node.code)}</code></pre></div>`
     }
     case 'mathBlock': {
-      const rendered = katex.renderToString(node.tex, { throwOnError: false, displayMode: true })
+      const rendered = renderMathWithFallback(node.tex, true)
       return `<div class="math-block" data-tex="${escapeHtml(node.tex)}">${rendered}</div>`
     }
     case 'table': {

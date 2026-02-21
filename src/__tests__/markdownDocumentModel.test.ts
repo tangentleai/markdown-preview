@@ -56,6 +56,37 @@ const value = 1
     expect(serializeDocumentModelToMarkdown(model)).toContain('\n\n---\n\n')
   })
 
+  it('should render benchmark block LaTeX formula with \\[...\\] delimiters', () => {
+    const markdown = '\\[\n\\text{MOM}_{i,t} = \\frac{P_{i,t-1}}{P_{i,t-1-N}} - 1\n\\]'
+
+    const model = parseMarkdownToDocumentModel(markdown)
+    expect(model.blocks[0]).toEqual({
+      type: 'mathBlock',
+      tex: '\\text{MOM}_{i,t} = \\frac{P_{i,t-1}}{P_{i,t-1-N}} - 1'
+    })
+
+    const html = markdownToEditableHtml(markdown)
+    expect(html).toContain('class="math-block"')
+    expect(html).toContain('class="katex"')
+  })
+
+  it('should fallback to raw LaTeX text when block formula render fails', () => {
+    const markdown = '\\[\n\\frac{1}{\n\\]'
+
+    const html = markdownToEditableHtml(markdown)
+    expect(html).toContain('class="math-block"')
+    expect(html).toContain('\\frac{1}{')
+    expect(html).not.toContain('class="katex"')
+  })
+
+  it('should parse and render inline \\(...\\) math syntax', () => {
+    const markdown = '收益率定义为 \\(r_t = \\frac{P_t}{P_{t-1}} - 1\\)'
+
+    const html = markdownToEditableHtml(markdown)
+    expect(html).toContain('class="math-inline"')
+    expect(html).toContain('class="katex"')
+  })
+
   it('should serialize document model to utf-8 markdown with structural semantics', () => {
     const model: DocumentModel = {
       blocks: [
