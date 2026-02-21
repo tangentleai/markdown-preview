@@ -37,7 +37,7 @@
         "Run: SCOPE: GUI",
         "Run: 使用 GUI MCP runbook 验证图标渲染、按钮可点击切换、`aria-label` 可被识别。"
       ],
-      "passes": false
+      "passes": true
     },
     "R4": {
       "category": "functional",
