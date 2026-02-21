@@ -25,7 +25,7 @@
         "Run: SCOPE: GUI",
         "Run: 使用 GUI MCP runbook 验证关闭前后状态对比，并确认再次打开不残留上次输入、按下态、错误提示和高亮。"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",
