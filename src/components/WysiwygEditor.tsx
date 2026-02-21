@@ -28,6 +28,7 @@ import replaceAllIcon from '../assets/iconfont/replace-all.svg'
 import closeSearchIcon from '../assets/iconfont/close-search.svg'
 import caseSensitiveIcon from '../assets/iconfont/case-sensitive.svg'
 import wholeWordIcon from '../assets/iconfont/whole-word.svg'
+import regexModeIcon from '../assets/iconfont/regex-mode.svg'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -37,6 +38,19 @@ interface WysiwygEditorProps {
 }
 
 type IconButtonInteractionState = 'default' | 'hover' | 'active'
+
+const ICON_BUTTON_TOOLTIPS: Record<string, string> = {
+  close: '关闭查找替换工具栏',
+  'case-sensitive': '区分大小写',
+  'whole-word': '查找整个单词',
+  'regex-mode': '正则模式',
+  'find-previous': '查找上一个',
+  'find-next': '查找下一个',
+  'replace-current': '替换当前',
+  'replace-all': '替换全部'
+}
+
+const TOOLTIP_LONG_PRESS_DELAY_MS = 450
 
 type MonacoApi = typeof import('monaco-editor')
 
@@ -904,6 +918,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [showFindToolbar, setShowFindToolbar] = useState(false)
   const [findToolbarMode, setFindToolbarMode] = useState<'find' | 'replace'>('find')
   const [iconButtonStates, setIconButtonStates] = useState<Record<string, IconButtonInteractionState>>({})
+  const [visibleTooltipButtonId, setVisibleTooltipButtonId] = useState<string | null>(null)
+  const longPressTimerRef = useRef<number | null>(null)
 
   const getFindOptions = (): FindMatchOptions =>
     resolveFindOptions({
@@ -1445,9 +1461,25 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     navigateFindResult('previous')
   }
 
+  const resetFindToolbarState = () => {
+    setFindQuery('')
+    setReplaceQuery('')
+    setIsCaseSensitiveFind(false)
+    setIsWholeWordFind(false)
+    setIsRegexFind(false)
+    setFindRegexError(null)
+    setActiveFindIndex(-1)
+    setFindResultCount(0)
+    setFindToolbarMode('find')
+    setIconButtonStates({})
+  }
+
   const closeFindToolbarAndRestoreEditorFocus = () => {
     setShowFindToolbar(false)
-    setFindToolbarMode('find')
+    resetFindToolbarState()
+    if (editorRef.current) {
+      clearFindHighlights(editorRef.current)
+    }
 
     window.requestAnimationFrame(() => {
       const editor = editorRef.current
@@ -1599,6 +1631,24 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const isReplaceMode = findToolbarMode === 'replace'
   const iconButtonBaseClass =
     'wysiwyg-find-icon-btn inline-flex h-8 w-8 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 disabled:cursor-not-allowed disabled:opacity-50'
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) {
+      return
+    }
+    window.clearTimeout(longPressTimerRef.current)
+    longPressTimerRef.current = null
+  }
+  const showIconTooltip = (buttonId: string) => {
+    setVisibleTooltipButtonId(buttonId)
+  }
+  const hideIconTooltip = (buttonId?: string) => {
+    setVisibleTooltipButtonId((current) => {
+      if (!buttonId || current === buttonId) {
+        return null
+      }
+      return current
+    })
+  }
   const updateIconButtonState = (buttonId: string, nextState: IconButtonInteractionState) => {
     setIconButtonStates((current) => {
       if ((current[buttonId] ?? 'default') === nextState) {
@@ -1615,9 +1665,13 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       if (!disabled) {
         updateIconButtonState(buttonId, 'hover')
       }
+      showIconTooltip(buttonId)
     },
-    onMouseLeave: () => {
+    onMouseLeave: (event: React.MouseEvent<HTMLButtonElement>) => {
       updateIconButtonState(buttonId, 'default')
+      if (document.activeElement !== event.currentTarget) {
+        hideIconTooltip(buttonId)
+      }
     },
     onMouseDown: () => {
       if (!disabled) {
@@ -1629,10 +1683,50 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         updateIconButtonState(buttonId, 'hover')
       }
     },
+    onFocus: () => {
+      showIconTooltip(buttonId)
+    },
     onBlur: () => {
       updateIconButtonState(buttonId, 'default')
+      hideIconTooltip(buttonId)
+      clearLongPressTimer()
+    },
+    onTouchStart: () => {
+      clearLongPressTimer()
+      longPressTimerRef.current = window.setTimeout(() => {
+        showIconTooltip(buttonId)
+      }, TOOLTIP_LONG_PRESS_DELAY_MS)
+    },
+    onTouchEnd: () => {
+      clearLongPressTimer()
+      hideIconTooltip(buttonId)
+    },
+    onTouchCancel: () => {
+      clearLongPressTimer()
+      hideIconTooltip(buttonId)
     }
   })
+  const renderIconTooltip = (buttonId: string) => {
+    if (visibleTooltipButtonId !== buttonId) {
+      return null
+    }
+    const tooltipText = ICON_BUTTON_TOOLTIPS[buttonId]
+    if (!tooltipText) {
+      return null
+    }
+    return (
+      <span role="tooltip" className="wysiwyg-find-icon-tooltip">
+        {tooltipText}
+      </span>
+    )
+  }
+
+  useEffect(() => {
+    return () => {
+      clearLongPressTimer()
+    }
+  }, [])
+
   const getIconButtonStyle = (buttonId: string, options?: { pressed?: boolean; disabled?: boolean }) => {
     const disabled = options?.disabled ?? false
     const pressed = options?.pressed ?? false
@@ -2394,8 +2488,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         <div
           aria-label="查找替换工具栏"
           aria-hidden={!showFindToolbar}
-          className={`wysiwyg-find-toolbar pointer-events-auto absolute right-3 top-3 z-20 w-[min(640px,90%)] rounded border border-gray-200 bg-white p-3 shadow-lg transition-all duration-200 ${
-            showFindToolbar ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+          className={`wysiwyg-find-toolbar pointer-events-auto z-20 mb-3 w-full rounded border border-gray-200 bg-white p-3 shadow-lg ${
+            showFindToolbar ? 'sticky top-4' : 'hidden'
           }`}
         >
         <div className="flex items-start gap-3">
@@ -2459,109 +2553,135 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                 替换
               </button>
             </div>
-            <button
-              type="button"
-              onClick={closeFindToolbarAndRestoreEditorFocus}
-              {...getIconButtonInteractionHandlers('close', false)}
-              aria-label="关闭查找替换工具栏"
-              className={iconButtonBaseClass}
-              style={getIconButtonStyle('close')}
-            >
-              <img src={closeSearchIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-            </button>
+            <span className="wysiwyg-find-icon-btn-wrap">
+              <button
+                type="button"
+                onClick={closeFindToolbarAndRestoreEditorFocus}
+                {...getIconButtonInteractionHandlers('close', false)}
+                aria-label="关闭查找替换工具栏"
+                className={iconButtonBaseClass}
+                style={getIconButtonStyle('close')}
+              >
+                <img src={closeSearchIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+              </button>
+              {renderIconTooltip('close')}
+            </span>
           </div>
         </div>
         <div className="wysiwyg-find-toolbar mt-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleCaseSensitiveFind}
-            {...getIconButtonInteractionHandlers('case-sensitive', false)}
-            aria-label="区分大小写"
-            aria-pressed={isCaseSensitiveFind}
-            className={`${iconButtonBaseClass} ${
-              isCaseSensitiveFind
-                ? 'wysiwyg-find-icon-btn-pressed'
-                : ''
-            }`}
-            style={getIconButtonStyle('case-sensitive', { pressed: isCaseSensitiveFind })}
-          >
-            <img src={caseSensitiveIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={toggleWholeWordFind}
-            {...getIconButtonInteractionHandlers('whole-word', isRegexFind)}
-            aria-label="查找整个单词"
-            aria-pressed={isWholeWordFind}
-            disabled={isRegexFind}
-            className={`${iconButtonBaseClass} ${
-              isWholeWordFind
-                ? 'wysiwyg-find-icon-btn-pressed'
-                : ''
-            }`}
-            style={getIconButtonStyle('whole-word', { pressed: isWholeWordFind, disabled: isRegexFind })}
-          >
-            <img src={wholeWordIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={toggleRegexFind}
-            aria-label="正则模式"
-            aria-pressed={isRegexFind}
-            className={`rounded px-2 py-1 text-sm transition-colors ${
-              isRegexFind
-                ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            正则模式
-          </button>
-          <button
-            type="button"
-            onClick={handleFindPrevious}
-            {...getIconButtonInteractionHandlers('find-previous', disableFindActions)}
-            aria-label="查找上一个"
-            disabled={disableFindActions}
-            className={iconButtonBaseClass}
-            style={getIconButtonStyle('find-previous', { disabled: disableFindActions })}
-          >
-            <img src={findPreviousIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleFindNext}
-            {...getIconButtonInteractionHandlers('find-next', disableFindActions)}
-            aria-label="查找下一个"
-            disabled={disableFindActions}
-            className={iconButtonBaseClass}
-            style={getIconButtonStyle('find-next', { disabled: disableFindActions })}
-          >
-            <img src={findNextIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-          </button>
+          <span className="wysiwyg-find-icon-btn-wrap">
+            <button
+              type="button"
+              onClick={toggleCaseSensitiveFind}
+              {...getIconButtonInteractionHandlers('case-sensitive', false)}
+              aria-label="区分大小写"
+              aria-pressed={isCaseSensitiveFind}
+              className={`${iconButtonBaseClass} ${
+                isCaseSensitiveFind
+                  ? 'wysiwyg-find-icon-btn-pressed'
+                  : ''
+              }`}
+              style={getIconButtonStyle('case-sensitive', { pressed: isCaseSensitiveFind })}
+            >
+              <img src={caseSensitiveIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+            {renderIconTooltip('case-sensitive')}
+          </span>
+          <span className="wysiwyg-find-icon-btn-wrap">
+            <button
+              type="button"
+              onClick={toggleWholeWordFind}
+              {...getIconButtonInteractionHandlers('whole-word', isRegexFind)}
+              aria-label="查找整个单词"
+              aria-pressed={isWholeWordFind}
+              disabled={isRegexFind}
+              className={`${iconButtonBaseClass} ${
+                isWholeWordFind
+                  ? 'wysiwyg-find-icon-btn-pressed'
+                  : ''
+              }`}
+              style={getIconButtonStyle('whole-word', { pressed: isWholeWordFind, disabled: isRegexFind })}
+            >
+              <img src={wholeWordIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+            {renderIconTooltip('whole-word')}
+          </span>
+          <span className="wysiwyg-find-icon-btn-wrap">
+            <button
+              type="button"
+              onClick={toggleRegexFind}
+              {...getIconButtonInteractionHandlers('regex-mode', false)}
+              aria-label="正则模式"
+              aria-pressed={isRegexFind}
+              className={`${iconButtonBaseClass} ${
+                isRegexFind
+                  ? 'wysiwyg-find-icon-btn-pressed'
+                  : ''
+              }`}
+              style={getIconButtonStyle('regex-mode', { pressed: isRegexFind })}
+            >
+              <img src={regexModeIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+            {renderIconTooltip('regex-mode')}
+          </span>
+          <span className="wysiwyg-find-icon-btn-wrap">
+            <button
+              type="button"
+              onClick={handleFindPrevious}
+              {...getIconButtonInteractionHandlers('find-previous', disableFindActions)}
+              aria-label="查找上一个"
+              disabled={disableFindActions}
+              className={iconButtonBaseClass}
+              style={getIconButtonStyle('find-previous', { disabled: disableFindActions })}
+            >
+              <img src={findPreviousIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+            {renderIconTooltip('find-previous')}
+          </span>
+          <span className="wysiwyg-find-icon-btn-wrap">
+            <button
+              type="button"
+              onClick={handleFindNext}
+              {...getIconButtonInteractionHandlers('find-next', disableFindActions)}
+              aria-label="查找下一个"
+              disabled={disableFindActions}
+              className={iconButtonBaseClass}
+              style={getIconButtonStyle('find-next', { disabled: disableFindActions })}
+            >
+              <img src={findNextIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+            {renderIconTooltip('find-next')}
+          </span>
           {isReplaceMode ? (
             <>
-              <button
-                type="button"
-                onClick={handleReplaceCurrent}
-                {...getIconButtonInteractionHandlers('replace-current', disableFindActions)}
-                aria-label="替换当前"
-                disabled={disableFindActions}
-                className={iconButtonBaseClass}
-                style={getIconButtonStyle('replace-current', { disabled: disableFindActions })}
-              >
-                <img src={replaceCurrentIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleReplaceAll}
-                {...getIconButtonInteractionHandlers('replace-all', disableFindActions)}
-                aria-label="替换全部"
-                disabled={disableFindActions}
-                className={iconButtonBaseClass}
-                style={getIconButtonStyle('replace-all', { disabled: disableFindActions })}
-              >
-                <img src={replaceAllIcon} alt="" aria-hidden="true" className="h-4 w-4" />
-              </button>
+              <span className="wysiwyg-find-icon-btn-wrap">
+                <button
+                  type="button"
+                  onClick={handleReplaceCurrent}
+                  {...getIconButtonInteractionHandlers('replace-current', disableFindActions)}
+                  aria-label="替换当前"
+                  disabled={disableFindActions}
+                  className={iconButtonBaseClass}
+                  style={getIconButtonStyle('replace-current', { disabled: disableFindActions })}
+                >
+                  <img src={replaceCurrentIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+                </button>
+                {renderIconTooltip('replace-current')}
+              </span>
+              <span className="wysiwyg-find-icon-btn-wrap">
+                <button
+                  type="button"
+                  onClick={handleReplaceAll}
+                  {...getIconButtonInteractionHandlers('replace-all', disableFindActions)}
+                  aria-label="替换全部"
+                  disabled={disableFindActions}
+                  className={iconButtonBaseClass}
+                  style={getIconButtonStyle('replace-all', { disabled: disableFindActions })}
+                >
+                  <img src={replaceAllIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+                </button>
+                {renderIconTooltip('replace-all')}
+              </span>
             </>
           ) : null}
           {findRegexError ? (

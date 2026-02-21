@@ -691,21 +691,113 @@ describe('App component', () => {
     expect(counter.textContent).toContain('1/2')
   })
 
-  it('should default to find mode and reset to find mode after close and reopen', () => {
+  it('should reset find/replace inputs, states, counters, errors, highlights, and mode after close or Esc', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>alpha beta alpha</p>'
 
     fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
-    expect(screen.queryByLabelText('替换文本')).toBeNull()
+    const findInput = screen.getByLabelText('查找文本') as HTMLInputElement
+    const caseSensitiveButton = screen.getByRole('button', { name: '区分大小写' })
+    const wholeWordButton = screen.getByRole('button', { name: '查找整个单词' })
+    const regexButton = screen.getByRole('button', { name: '正则模式' })
+    const findNextButton = screen.getByRole('button', { name: '查找下一个' })
+    const counter = screen.getByLabelText('查找结果计数')
+    expect(screen.queryByText('正则模式')).toBeNull()
+    expect(regexButton.querySelector('img')).toBeTruthy()
 
+    fireEvent.change(findInput, { target: { value: 'alpha' } })
     fireEvent.click(screen.getByRole('button', { name: '切换到替换模式' }))
-    expect(screen.getByLabelText('替换文本')).toBeTruthy()
+    const replaceInput = screen.getByLabelText('替换文本') as HTMLInputElement
+    fireEvent.change(replaceInput, { target: { value: 'ALPHA' } })
+    fireEvent.click(caseSensitiveButton)
+    fireEvent.click(wholeWordButton)
+    fireEvent.click(findNextButton)
+
+    await waitFor(() => {
+      expect(counter.textContent).toContain('1/2')
+      expect(editor.querySelectorAll('span[data-find-highlight="true"]').length).toBeGreaterThan(0)
+    })
+
+    fireEvent.click(regexButton)
+    fireEvent.change(findInput, { target: { value: '(' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('查找错误提示')).toBeTruthy()
+    })
 
     fireEvent.click(screen.getByRole('button', { name: '关闭查找替换工具栏' }))
+
     fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    const reopenedFindInput = screen.getByLabelText('查找文本') as HTMLInputElement
+    expect(reopenedFindInput.value).toBe('')
     expect(screen.queryByLabelText('替换文本')).toBeNull()
+    expect(caseSensitiveButton.getAttribute('aria-pressed')).toBe('false')
+    expect(wholeWordButton.getAttribute('aria-pressed')).toBe('false')
+    expect(regexButton.getAttribute('aria-pressed')).toBe('false')
+    expect(screen.queryByLabelText('查找错误提示')).toBeNull()
+    expect(counter.textContent).toContain('0/N')
+    expect(editor.querySelectorAll('span[data-find-highlight="true"]').length).toBe(0)
+
+    fireEvent.change(reopenedFindInput, { target: { value: 'alpha' } })
+    fireEvent.click(screen.getByRole('button', { name: '切换到替换模式' }))
+    fireEvent.change(screen.getByLabelText('替换文本'), { target: { value: 'Z' } })
+    fireEvent.click(caseSensitiveButton)
+    fireEvent.keyDown(reopenedFindInput, { key: 'Escape' })
+
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    expect((screen.getByLabelText('查找文本') as HTMLInputElement).value).toBe('')
+    expect(screen.queryByLabelText('替换文本')).toBeNull()
+    expect(caseSensitiveButton.getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByLabelText('查找结果计数').textContent).toContain('0/N')
+    expect(editor.querySelectorAll('span[data-find-highlight="true"]').length).toBe(0)
+  })
+
+  it('should show consistent icon tooltips on hover, focus, and long-press', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+
+    const caseSensitiveButton = screen.getByRole('button', { name: '区分大小写' })
+    fireEvent.mouseEnter(caseSensitiveButton)
+    const hoverTooltip = screen.getByRole('tooltip')
+    expect(hoverTooltip.textContent).toBe('区分大小写')
+    expect(hoverTooltip.className).toContain('wysiwyg-find-icon-tooltip')
+
+    fireEvent.mouseLeave(caseSensitiveButton)
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).toBeNull()
+    })
+
+    const regexButton = screen.getByRole('button', { name: '正则模式' })
+    fireEvent.focus(regexButton)
+    const focusTooltip = screen.getByRole('tooltip')
+    expect(focusTooltip.textContent).toBe('正则模式')
+    expect(focusTooltip.className).toContain('wysiwyg-find-icon-tooltip')
+
+    fireEvent.blur(regexButton)
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).toBeNull()
+    })
+
+    const closeButton = screen.getByRole('button', { name: '关闭查找替换工具栏' })
+    fireEvent.touchStart(closeButton)
+    await waitFor(
+      () => {
+        const longPressTooltip = screen.getByRole('tooltip')
+        expect(longPressTooltip.textContent).toBe('关闭查找替换工具栏')
+        expect(longPressTooltip.className).toContain('wysiwyg-find-icon-tooltip')
+      },
+      { timeout: 1000 }
+    )
+
+    fireEvent.touchEnd(closeButton)
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).toBeNull()
+    })
   })
 
   it('should render mermaid diagram in WYSIWYG and round-trip to markdown', async () => {
