@@ -120,6 +120,7 @@ Git记账示例：
 
 ```bash
 git status
+git add .
 git add openspec/changes/<change-id>/tasks.md \
         openspec/changes/<change-id>/progress.txt \
         openspec/changes/<change-id>/feature_list.json
