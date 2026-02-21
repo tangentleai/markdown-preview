@@ -56,10 +56,13 @@
 
 ## 3. 布局与响应式联动
 
-- [ ] 3.1 调整左侧大纲贴边与右侧编辑区宽度、居中策略 [#R8]
+- [x] 3.1 调整左侧大纲贴边与右侧编辑区宽度、居中策略 [#R8]
   - ACCEPT: 大纲贴紧左边缘；编辑区默认目标宽度占可视区 68% 并居中渲染。
   - TEST: SCOPE: GUI
     - 在常见桌面分辨率下检查边距、内容宽度与居中效果。
+  - BUNDLE (RUN #8): Implemented R8 WYSIWYG layout update with left-edge outline alignment and centered editor target width at ~68% plus GUI MCP validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0008__task-3.1__ref-R8__20260221T092505Z | HOW_TO_RUN: run.sh/run.bat
+  - BUNDLE (RUN #9): Fixed R8 parent-relative width denominator and centering by introducing right-pane local container; kept outline flush-left and updated GUI MCP validation assets | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0009__task-3.1__ref-R8__20260221T094335Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #9): Supervisor re-ran GUI MCP validation and confirmed R8 acceptance after retry fix | VALIDATED: bash auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0009__task-3.1__ref-R8__20260221T094335Z/run.sh (server started at http://127.0.0.1:33100/) + MCP assertions (outline left offset=0px; editor ratio=0.679998 within [0.66,0.70]; center gap delta=0.0078px <=2) | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0009__task-3.1__ref-R8__20260221T094335Z/outputs/screenshots/01-r8-layout-desktop.png, auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0009__task-3.1__ref-R8__20260221T094335Z/outputs/screenshots/02-r8-layout-centered-check.png
 
 - [ ] 3.2 实现大纲宽度拖拽与编辑区联动更新 [#R9]
   - ACCEPT: 用户拖拽大纲宽度后，编辑区可用宽度与位置实时同步变化，交互平滑；拖拽状态不做本地持久化。

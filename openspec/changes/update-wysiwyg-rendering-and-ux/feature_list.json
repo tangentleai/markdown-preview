@@ -99,7 +99,7 @@
         "Run: SCOPE: GUI",
         "Run: 在常见桌面分辨率下检查边距、内容宽度与居中效果。"
       ],
-      "passes": false
+      "passes": true
     },
     "R9": {
       "category": "functional",

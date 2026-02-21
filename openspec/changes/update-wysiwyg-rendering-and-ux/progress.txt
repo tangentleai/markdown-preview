@@ -6,3 +6,6 @@
 [RUN 5] task=2.1-R5 worker_session=ses_380b62bc8ffeBfXVpW9xdn8pBC result=PASS evidence=auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0005__task-2.1__ref-R5__20260221T082617Z/
 [RUN 6] task=2.2-R6 worker_session=ses_380a4c297ffes3eLuVA0BK5NKB result=PASS evidence=auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0006__task-2.2__ref-R6__20260221T084140Z/
 [RUN 7] task=2.3-R7 worker_session=ses_3808dfe4bffe70jefJOVRfwS1L result=PASS evidence=auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0007__task-2.3__ref-R7__20260221T090742Z/
+[RUN 8] task=3.1-R8 worker_session=ses_3807e47a9ffe3xIqokk3rBv4ht result=FAIL reason=GUI verification failed; editor layout ratio measured 0.5467 (expected 0.66-0.70) and centering gap delta 275.99px in desktop 1440x900
+[RUN 8] task=3.1-R8 unblock=GUIDANCE summary=Use right-column local container as ratio denominator; set layout wrapper width directly to 68% of right pane and center via margin auto; re-run desktop MCP ratio/cross-gap assertions
+[RUN 9] task=3.1-R8 worker_session=ses_3807e47a9ffe3xIqokk3rBv4ht result=PASS evidence=auto_test_openspec/update-wysiwyg-rendering-and-ux/run-0009__task-3.1__ref-R8__20260221T094335Z/

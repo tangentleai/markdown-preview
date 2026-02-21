@@ -350,7 +350,13 @@ Alice -> Bob : 回复
           <span>快捷键：Ctrl/Cmd+S（WYSIWYG: Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+E）</span>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto pt-2 pb-6 sm:px-6 lg:px-8">
+      <main
+        className={
+          editorMode === 'wysiwyg'
+            ? 'w-full pt-2 pb-6 sm:pr-6 lg:pr-8'
+            : 'max-w-7xl mx-auto pt-2 pb-6 sm:px-6 lg:px-8'
+        }
+      >
         {editorMode === 'dual-pane' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <MarkdownInput markdown={markdown} setMarkdown={updateMarkdown} />
@@ -397,12 +403,16 @@ Alice -> Bob : 回复
                   <p className="text-sm text-gray-500">当前文档暂无 H1-H6 标题</p>
                 )}
               </aside>
-              <WysiwygEditor
-                markdown={markdown}
-                setMarkdown={updateMarkdown}
-                jumpToHeadingIndex={jumpToHeadingIndex}
-                jumpRequestNonce={jumpRequestNonce}
-              />
+              <div className="w-full" aria-label="编辑区右侧列容器">
+                <div className="w-full lg:mx-auto lg:w-[68%]" aria-label="编辑区布局容器">
+                  <WysiwygEditor
+                    markdown={markdown}
+                    setMarkdown={updateMarkdown}
+                    jumpToHeadingIndex={jumpToHeadingIndex}
+                    jumpRequestNonce={jumpRequestNonce}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}
