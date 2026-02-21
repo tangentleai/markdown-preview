@@ -110,7 +110,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证模式切换、替换动作、关闭重开重置行为。"
       ],
-      "passes": false
+      "passes": true
     },
     "R10": {
       "category": "functional",
