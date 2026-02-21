@@ -109,32 +109,39 @@ CLI任务验收命令：
 - Unix: `bash auto_test_openspec/<change-id>/<task-ref>/run.sh`
 - Windows: `bash auto_test_openspec/<change-id>/<task-ref>/run.bat`
 
-GUI任务验收流程：
-1. **关闭旧浏览器实例**：调用 `mcp_Playwright_playwright_close` 工具优雅关闭浏览器
+**关闭旧浏览器实例**：调用 `mcp_Playwright_playwright_close` 工具优雅关闭浏览器
    - 注意：不要使用 `pkill` 强制终止，会导致 macOS 弹出"系统可能不会保存您所作的更改"提示
-2. **启动服务**：执行 `run.sh`/`run.bat` 启动被测服务
-3. **执行 MCP 验证**：按照 `tests/gui_runbook_*.md` 中的步骤执行验证
-4. **收集证据**：截图保存到 `outputs/screenshots/`
-5. **关闭浏览器**：再次调用 `mcp_Playwright_playwright_close` 关闭浏览器
 
 ### G. 验收通过后的记账顺序（不可打乱）
 1. 勾选`tasks.md`对应复选框
 2. 在`tasks.md`补充EVIDENCE行（命令、结果、时间、产物路径）
 3. 仅将`feature_list.json`中对应`ref`的`passes`改为`true`
 4. 追加`progress.txt`日志
-5. Git记账提交
+5. Git提交，收集产品代码与文档改动以及记账文件
 
 Git记账示例：
 
 ```bash
+# 1) 收集代码改动（排除构建产物与验收包产物）
 git status
-git add .
+git add -A -- . ':(exclude)dist/' ':(exclude)auto_test_openspec/' ':(exclude)node_modules/'
+# 若当前 Git 不支持 :(exclude) 语法，可使用兼容方案：
+# git add -A
+# git reset -- dist/ auto_test_openspec/ node_modules/
+
+# 2) 收集记账文件（必须包含）
 git add openspec/changes/<change-id>/tasks.md \
         openspec/changes/<change-id>/progress.txt \
         openspec/changes/<change-id>/feature_list.json
+
+# 3) 提交并输出锚点
 git commit -m "chore(openspec): accept <task-ref> after supervisor verification"
 git rev-parse --short HEAD
 ```
+
+注意：
+- 第一步仅收集产品代码与文档改动，明确排除 `dist/`、`auto_test_openspec/`、`node_modules/` 等非源码产物
+- 第二步单独加入记账文件，确保验收证据与状态变更被一并提交
 
 ### H. progress.txt推荐日志格式
 
