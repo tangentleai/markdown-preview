@@ -11,6 +11,7 @@ describe('wysiwyg block input rules transaction log', () => {
     { marker: '-', key: ' ', rule: 'unordered-list', tag: 'UL' },
     { marker: '1.', key: ' ', rule: 'ordered-list', tag: 'OL' },
     { marker: '>', key: ' ', rule: 'blockquote', tag: 'BLOCKQUOTE' },
+    { marker: '---', key: ' ', rule: 'horizontal-rule', tag: 'HR' },
     { marker: '```', key: 'Enter', rule: 'code-block', tag: 'PRE' }
   ])('should generate transaction metadata for marker %s', ({ marker, key, rule, tag }) => {
     const match = canTriggerBlockInputRule(marker, key)

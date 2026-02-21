@@ -8,6 +8,7 @@ export type BlockInputRuleName =
   | 'unordered-list'
   | 'ordered-list'
   | 'blockquote'
+  | 'horizontal-rule'
   | 'code-block'
   | 'heading-to-paragraph'
   | 'exit-empty-list-item'
@@ -17,7 +18,7 @@ export interface BlockInputRuleMatch {
   rule: BlockInputRuleName
   triggerText: string
   triggerKey: ' ' | 'Enter'
-  targetTag: 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6' | 'UL' | 'OL' | 'BLOCKQUOTE' | 'PRE'
+  targetTag: 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6' | 'UL' | 'OL' | 'BLOCKQUOTE' | 'HR' | 'PRE'
   language?: string
 }
 
@@ -127,6 +128,15 @@ export const matchBlockInputRule = (
       triggerText: '>',
       triggerKey,
       targetTag: 'BLOCKQUOTE'
+    }
+  }
+
+  if (lineText === '---') {
+    return {
+      rule: 'horizontal-rule',
+      triggerText: '---',
+      triggerKey,
+      targetTag: 'HR'
     }
   }
 

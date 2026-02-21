@@ -202,6 +202,10 @@ const blockToMarkdown = (element: Element): string => {
     return `${'#'.repeat(level)} ${Array.from(element.childNodes).map(nodeToMarkdown).join('').trim()}`
   }
 
+  if (tagName === 'HR') {
+    return '---'
+  }
+
   if (tagName === 'DIV' && (element.getAttribute('class') ?? '').includes('math-block')) {
     const tex = element.getAttribute('data-tex') ?? ''
     return `$$\n${tex}\n$$`
@@ -281,7 +285,7 @@ const getClosestBlockElement = (node: Node | null, root: HTMLElement): HTMLEleme
   }
 
   const block = startElement.closest(
-    'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div[data-code-block="true"]'
+    'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, hr, div[data-code-block="true"]'
   ) as HTMLElement | null
   if (!block || !root.contains(block)) {
     return null
@@ -877,6 +881,13 @@ const replaceBlockByRule = (block: HTMLElement, ruleMatch: BlockInputRuleMatch):
       container.append(pre)
       block.replaceWith(container)
       return container
+    }
+    case 'horizontal-rule': {
+      const hr = document.createElement('hr')
+      const paragraph = document.createElement('p')
+      paragraph.append(document.createElement('br'))
+      block.replaceWith(hr, paragraph)
+      return paragraph
     }
     default:
       return block

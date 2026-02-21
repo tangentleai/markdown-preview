@@ -47,6 +47,15 @@ const value = 1
     )
   })
 
+  it('should parse and render markdown horizontal rule as hr node', () => {
+    const markdown = '上文\n\n---\n\n下文\n'
+
+    const model = parseMarkdownToDocumentModel(markdown)
+    expect(model.blocks[1]).toEqual({ type: 'horizontalRule' })
+    expect(markdownToEditableHtml(markdown)).toContain('<hr />')
+    expect(serializeDocumentModelToMarkdown(model)).toContain('\n\n---\n\n')
+  })
+
   it('should serialize document model to utf-8 markdown with structural semantics', () => {
     const model: DocumentModel = {
       blocks: [

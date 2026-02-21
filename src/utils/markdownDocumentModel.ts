@@ -13,6 +13,7 @@ export type InlineNode =
 export type BlockNode =
   | { type: 'paragraph'; children: InlineNode[] }
   | { type: 'heading'; level: number; children: InlineNode[] }
+  | { type: 'horizontalRule' }
   | { type: 'list'; ordered: boolean; items: InlineNode[][] }
   | { type: 'quote'; blocks: BlockNode[] }
   | { type: 'codeBlock'; language: string; code: string }
@@ -103,6 +104,7 @@ const isFencedCodeStart = (line: string): boolean => /^```/.test(line.trim())
 const isBlockMathDelimiter = (line: string): boolean => /^\$\$\s*$/.test(line.trim())
 
 const isHeading = (line: string): boolean => /^(#{1,6})\s+/.test(line.trim())
+const isHorizontalRule = (line: string): boolean => /^(?:-{3,}|(?:-\s+){2,}-)\s*$/.test(line.trim())
 
 const isQuote = (line: string): boolean => /^>\s?/.test(line.trim())
 
@@ -170,6 +172,12 @@ const parseMarkdownLines = (lines: string[]): BlockNode[] => {
           children: parseInline(headingMatch[2])
         })
       }
+      index += 1
+      continue
+    }
+
+    if (isHorizontalRule(trimmed)) {
+      blocks.push({ type: 'horizontalRule' })
       index += 1
       continue
     }
@@ -297,6 +305,8 @@ const blockNodeToMarkdown = (node: BlockNode): string => {
       return node.children.map(inlineNodeToMarkdown).join('')
     case 'heading':
       return `${'#'.repeat(node.level)} ${node.children.map(inlineNodeToMarkdown).join('')}`
+    case 'horizontalRule':
+      return '---'
     case 'list': {
       const marker = node.ordered ? (index: number) => `${index + 1}. ` : () => '- '
       return node.items
@@ -366,6 +376,8 @@ const blockNodeToHtml = (node: BlockNode): string => {
       return `<p>${node.children.map(inlineNodeToHtml).join('').replaceAll('\n', '<br />')}</p>`
     case 'heading':
       return `<h${node.level}>${node.children.map(inlineNodeToHtml).join('')}</h${node.level}>`
+    case 'horizontalRule':
+      return '<hr />'
     case 'list': {
       const items = node.items.map((item) => `<li>${item.map(inlineNodeToHtml).join('')}</li>`).join('')
       return node.ordered ? `<ol>${items}</ol>` : `<ul>${items}</ul>`
