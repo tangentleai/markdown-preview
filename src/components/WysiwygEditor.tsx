@@ -2708,7 +2708,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }
 
   return (
-    <div className="relative bg-white rounded-lg shadow-md p-4">
+    <div className="relative bg-white p-4">
         <div
           aria-label="查找替换工具栏"
           aria-hidden={!showFindToolbar}
@@ -2935,7 +2935,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         onCompositionEnd={() => {
           isImeComposingRef.current = false
         }}
-        className="markdown-preview min-h-[300px] rounded border border-gray-200 transition-shadow focus:outline-none focus:shadow-[0_0_0_1px_rgba(148,163,184,0.7),0_10px_24px_rgba(15,23,42,0.12)]"
+        className="markdown-preview min-h-[300px] rounded-none border-0 transition-shadow focus:outline-none"
         aria-label="WYSIWYG 编辑区"
         role="textbox"
       />

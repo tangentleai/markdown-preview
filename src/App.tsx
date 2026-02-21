@@ -362,8 +362,8 @@ Alice -> Bob : 回复
   }, [editorMode, isOutlineDrawerOpen])
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-white">
+      <header className="bg-white shadow-sm mb-0">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Markdown Preview</h1>
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="文件与编辑模式操作">
@@ -431,7 +431,7 @@ Alice -> Bob : 回复
       <main
         className={
           editorMode === 'wysiwyg'
-            ? 'w-full pt-2 pb-6 sm:pr-6 lg:pr-8'
+            ? 'w-full pt-0 pb-6 sm:pr-6 lg:pr-8'
             : 'max-w-7xl mx-auto pt-2 pb-6 sm:px-6 lg:px-8'
         }
       >
@@ -513,11 +513,11 @@ Alice -> Bob : 回复
               </div>
             ) : null}
             <div
-              className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--outline-width)_10px_minmax(0,1fr)]"
+              className="grid grid-cols-1 gap-0 lg:grid-cols-[var(--outline-width)_8px_minmax(0,1fr)]"
               aria-label="大纲与编辑区联动布局"
               style={{ '--outline-width': `${outlineWidth}px` } as React.CSSProperties}
             >
-              <aside className="hidden lg:block lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
+              <aside className="hidden lg:block lg:sticky lg:top-0 lg:self-start bg-[#F5F7FA] p-3 rounded-none h-[100vh] overflow-y-auto" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
                 {outlineHeadings.length > 0 ? (
                   <ul className="space-y-1.5" aria-label="标题大纲列表">
@@ -563,13 +563,15 @@ Alice -> Bob : 回复
                   aria-valuemax={OUTLINE_WIDTH_MAX}
                   aria-valuenow={outlineWidth}
                   onPointerDown={handleOutlineResizePointerDown}
-                  className={`w-full h-full rounded transition-colors ${
-                    isOutlineResizing ? 'bg-blue-500/50' : 'bg-gray-200 hover:bg-blue-300/70'
+                  className={`w-full h-full transition-colors ${
+                    isOutlineResizing ? 'bg-blue-500/50' : 'hover:bg-blue-100/50'
                   }`}
-                />
+                >
+                  <span className={`block w-[1px] h-full mx-auto transition-colors ${isOutlineResizing ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                </button>
               </div>
               <div className="w-full" aria-label="编辑区右侧列容器">
-                <div className="w-full lg:mx-auto lg:w-[68%]" aria-label="编辑区布局容器">
+                <div className="w-full lg:mx-auto lg:w-[78%]" aria-label="编辑区布局容器">
                   <WysiwygEditor
                     markdown={markdown}
                     setMarkdown={updateMarkdown}
