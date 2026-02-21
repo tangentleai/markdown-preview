@@ -25,7 +25,7 @@
         "Run: - CLI: 运行尺寸变更与 Markdown 结构合法性测试（表头/分隔线/列数一致）。",
         "Run: - GUI: 使用 GUI MCP runbook 验证网格交互、键盘操作（方向键/Enter/Esc）与裁剪确认流程。"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",

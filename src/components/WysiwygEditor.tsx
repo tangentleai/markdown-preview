@@ -26,6 +26,14 @@ import {
   renderInlineMathWithFallback
 } from '../utils/mathRendering'
 import { syncOverflowTableScrollviews } from '../utils/wysiwygTableOverflow'
+import {
+  TABLE_MAX_COLS,
+  TABLE_MAX_ROWS,
+  getTableSize,
+  normalizeTargetTableSize,
+  resizeTableTo,
+  shrinkWillTrimNonEmptyContent
+} from '../utils/wysiwygTableResize'
 import findPreviousIcon from '../assets/iconfont/find-previous.svg'
 import findNextIcon from '../assets/iconfont/find-next.svg'
 import replaceCurrentIcon from '../assets/iconfont/replace-current.svg'
@@ -47,6 +55,8 @@ interface WysiwygEditorProps {
 
 type IconButtonInteractionState = 'default' | 'hover' | 'active'
 type TableToolbarPlacement = 'top' | 'bottom'
+
+const TABLE_GRID_PREVIEW_MAX = 10
 
 const ICON_BUTTON_TOOLTIPS: Record<string, string> = {
   close: '关闭查找替换工具栏',
@@ -150,6 +160,38 @@ const toImageAltText = (fileName: string): string => {
   return normalized.slice(0, extensionIndex)
 }
 
+const normalizeTableCellMarkdownText = (value: string): string =>
+  value
+    .replace(/\u00A0/g, ' ')
+    .replace(/\|/g, '\\|')
+    .replace(/\n+/g, ' ')
+    .trim()
+
+const getMarkdownTableCellText = (cell: HTMLTableCellElement): string =>
+  normalizeTableCellMarkdownText(Array.from(cell.childNodes).map(nodeToMarkdown).join(''))
+
+const tableElementToMarkdown = (table: HTMLTableElement): string => {
+  const headerRow = table.tHead?.rows[0] ?? table.rows[0]
+  const headerCells = headerRow ? Array.from(headerRow.cells) : []
+  const bodyRows = Array.from(table.tBodies[0]?.rows ?? [])
+  const bodyCols = bodyRows.reduce((max, row) => Math.max(max, row.cells.length), 0)
+  const columnCount = Math.max(1, headerCells.length, bodyCols)
+
+  const toRowMarkdown = (cells: HTMLCollectionOf<HTMLTableCellElement>): string => {
+    const values = Array.from(cells).map(getMarkdownTableCellText)
+    while (values.length < columnCount) {
+      values.push('')
+    }
+    return `| ${values.slice(0, columnCount).join(' | ')} |`
+  }
+
+  const headerMarkdown = headerRow ? toRowMarkdown(headerRow.cells) : `| ${Array(columnCount).fill('').join(' | ')} |`
+  const separatorMarkdown = `| ${Array(columnCount).fill('---').join(' | ')} |`
+  const bodyMarkdown = bodyRows.map((row) => toRowMarkdown(row.cells))
+
+  return [headerMarkdown, separatorMarkdown, ...bodyMarkdown].join('\n')
+}
+
 const nodeToMarkdown = (node: ChildNode): string => {
   if (node.nodeType === Node.TEXT_NODE) {
     return (node.textContent ?? '').replace(/\u00A0/g, ' ')
@@ -220,7 +262,17 @@ const blockToMarkdown = (element: Element): string => {
     return `$$\n${tex}\n$$`
   }
 
+  if (tagName === 'TABLE') {
+    return tableElementToMarkdown(element as HTMLTableElement)
+  }
+
   if (tagName === 'DIV') {
+    if (element.getAttribute('data-table-scrollview') === 'true') {
+      const wrappedTable = element.querySelector(':scope > table') as HTMLTableElement | null
+      if (wrappedTable) {
+        return tableElementToMarkdown(wrappedTable)
+      }
+    }
     const cls = (element.getAttribute('class') ?? '').toLowerCase()
     if (cls.includes('mermaid')) {
       const raw = element.getAttribute('data-raw') ?? element.textContent ?? ''
@@ -951,6 +1003,9 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [visibleTooltipButtonId, setVisibleTooltipButtonId] = useState<string | null>(null)
   const [showTableToolbar, setShowTableToolbar] = useState(false)
   const [tableToolbarPlacement, setTableToolbarPlacement] = useState<TableToolbarPlacement>('top')
+  const [showTableSizeGrid, setShowTableSizeGrid] = useState(false)
+  const [tablePreviewRows, setTablePreviewRows] = useState(1)
+  const [tablePreviewCols, setTablePreviewCols] = useState(1)
   const [tableToolbarStyle, setTableToolbarStyle] = useState<React.CSSProperties>({
     left: '-9999px',
     top: '-9999px',
@@ -961,12 +1016,76 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const closeTableToolbar = useCallback(() => {
     activeTableRef.current = null
     setShowTableToolbar(false)
+    setShowTableSizeGrid(false)
     setTableToolbarStyle({
       left: '-9999px',
       top: '-9999px',
       opacity: 0
     })
   }, [])
+
+  const syncPreviewSizeFromActiveTable = useCallback(() => {
+    const activeTable = activeTableRef.current
+    if (!activeTable) {
+      return
+    }
+    const size = getTableSize(activeTable)
+    setTablePreviewRows(size.rows)
+    setTablePreviewCols(size.cols)
+  }, [])
+
+  const applyTableResize = useCallback(
+    (nextRows: number, nextCols: number) => {
+      const table = activeTableRef.current
+      if (!table || !editorRef.current) {
+        return
+      }
+
+      const currentSize = getTableSize(table)
+      const nextSize = normalizeTargetTableSize(nextRows, nextCols)
+      setTablePreviewRows(nextSize.rows)
+      setTablePreviewCols(nextSize.cols)
+
+      if (currentSize.rows === nextSize.rows && currentSize.cols === nextSize.cols) {
+        return
+      }
+
+      if (
+        (nextSize.rows < currentSize.rows || nextSize.cols < currentSize.cols) &&
+        shrinkWillTrimNonEmptyContent(table, currentSize, nextSize)
+      ) {
+        const confirmed = window.confirm('缩小将裁剪表格内容，可撤销；是否继续？')
+        if (!confirmed) {
+          return
+        }
+      }
+
+      const beforeMarkdown = htmlToMarkdown(editorRef.current)
+      const beforeHtml = editorRef.current.innerHTML
+      resizeTableTo(table, nextSize)
+      const afterMarkdown = htmlToMarkdown(editorRef.current)
+      const afterHtml = editorRef.current.innerHTML
+      structuralHistoryRef.current.push({
+        rule: 'code-block',
+        triggerText: '',
+        triggerKey: 'Enter',
+        beforeMarkdown,
+        afterMarkdown,
+        beforeHtml,
+        afterHtml,
+        beforeCursorOffset: 0,
+        afterCursorOffset: 0,
+        createdAt: new Date().toISOString()
+      })
+
+      syncOverflowTableScrollviews(editorRef.current)
+      lastSyncedMarkdownRef.current = afterMarkdown
+      if (afterMarkdown !== markdownRef.current) {
+        setMarkdown(afterMarkdown)
+      }
+    },
+    [setMarkdown]
+  )
 
   const positionTableToolbar = useCallback(() => {
     if (!showTableToolbar || !activeTableRef.current || !tableToolbarRef.current) {
@@ -1009,6 +1128,9 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
 
       activeTableRef.current = table
+      const size = getTableSize(table)
+      setTablePreviewRows(size.rows)
+      setTablePreviewCols(size.cols)
       setShowTableToolbar(true)
       window.requestAnimationFrame(() => {
         positionTableToolbar()
@@ -1545,6 +1667,13 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     positionTableToolbar()
   }, [closeTableToolbar, markdown, positionTableToolbar, showTableToolbar])
+
+  useEffect(() => {
+    if (!showTableSizeGrid) {
+      return
+    }
+    syncPreviewSizeFromActiveTable()
+  }, [showTableSizeGrid, syncPreviewSizeFromActiveTable])
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -2895,6 +3024,46 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     closeTableToolbar()
   }
 
+  const gridPreviewRowsMax = Math.max(TABLE_GRID_PREVIEW_MAX, Math.min(TABLE_MAX_ROWS, tablePreviewRows))
+  const gridPreviewColsMax = Math.max(TABLE_GRID_PREVIEW_MAX, Math.min(TABLE_MAX_COLS, tablePreviewCols))
+
+  const handleTableSizeGridKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setShowTableSizeGrid(false)
+      return
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      applyTableResize(tablePreviewRows, tablePreviewCols)
+      return
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setTablePreviewRows((current) => Math.max(1, current - 1))
+      return
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setTablePreviewRows((current) => Math.min(TABLE_MAX_ROWS, current + 1))
+      return
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      setTablePreviewCols((current) => Math.max(1, current - 1))
+      return
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      setTablePreviewCols((current) => Math.min(TABLE_MAX_COLS, current + 1))
+    }
+  }
+
   return (
     <div className="relative bg-white p-4">
         <div
@@ -3119,9 +3288,128 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           event.preventDefault()
         }}
       >
-        <button type="button" className="wysiwyg-table-toolbar-btn" aria-label="表格操作入口">
+        <button
+          type="button"
+          className="wysiwyg-table-toolbar-btn"
+          aria-label="调整表格尺寸"
+          aria-expanded={showTableSizeGrid}
+          onClick={() => {
+            if (!showTableSizeGrid) {
+              syncPreviewSizeFromActiveTable()
+            }
+            setShowTableSizeGrid((current) => !current)
+          }}
+        >
           <img src={tableToolbarAnchorIcon} alt="" aria-hidden="true" className="h-4 w-4" />
         </button>
+        {showTableSizeGrid ? (
+          <div
+            className="wysiwyg-table-size-grid-panel"
+            role="group"
+            aria-label="表格尺寸选择面板"
+            data-table-size-grid-panel="true"
+          >
+            <div className="wysiwyg-table-size-grid-head" aria-live="polite">
+              预览 {tablePreviewRows} x {tablePreviewCols}
+            </div>
+            <div
+              className="wysiwyg-table-size-grid"
+              role="grid"
+              tabIndex={0}
+              aria-label="表格尺寸网格"
+              data-table-size-grid="true"
+              onKeyDown={handleTableSizeGridKeyDown}
+            >
+              {Array.from({ length: gridPreviewRowsMax }, (_, rowIndex) => (
+                <div
+                  key={`row-${rowIndex}`}
+                  role="row"
+                  className="wysiwyg-table-size-grid-row"
+                  style={{ gridTemplateColumns: `repeat(${gridPreviewColsMax}, minmax(0, 1fr))` }}
+                >
+                  {Array.from({ length: gridPreviewColsMax }, (_, colIndex) => {
+                    const rowValue = rowIndex + 1
+                    const colValue = colIndex + 1
+                    const selected = rowValue <= tablePreviewRows && colValue <= tablePreviewCols
+                    return (
+                      <button
+                        key={`${rowValue}-${colValue}`}
+                        type="button"
+                        role="gridcell"
+                        aria-label={`${rowValue} 行 ${colValue} 列`}
+                        aria-selected={selected}
+                        className={`wysiwyg-table-size-grid-cell ${selected ? 'is-selected' : ''}`}
+                        onMouseEnter={() => {
+                          setTablePreviewRows(rowValue)
+                          setTablePreviewCols(colValue)
+                        }}
+                        onFocus={() => {
+                          setTablePreviewRows(rowValue)
+                          setTablePreviewCols(colValue)
+                        }}
+                        onClick={() => {
+                          setTablePreviewRows(rowValue)
+                          setTablePreviewCols(colValue)
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+            <div className="wysiwyg-table-size-grid-inputs">
+              <label>
+                行
+                <input
+                  type="number"
+                  min={1}
+                  max={TABLE_MAX_ROWS}
+                  value={tablePreviewRows}
+                  onChange={(event) => {
+                    const next = normalizeTargetTableSize(Number.parseInt(event.target.value, 10), tablePreviewCols)
+                    setTablePreviewRows(next.rows)
+                  }}
+                />
+              </label>
+              <label>
+                列
+                <input
+                  type="number"
+                  min={1}
+                  max={TABLE_MAX_COLS}
+                  value={tablePreviewCols}
+                  onChange={(event) => {
+                    const next = normalizeTargetTableSize(tablePreviewRows, Number.parseInt(event.target.value, 10))
+                    setTablePreviewCols(next.cols)
+                  }}
+                />
+              </label>
+            </div>
+            <div className="wysiwyg-table-size-grid-footer">
+              <span className="wysiwyg-table-size-grid-limit">上限 {TABLE_MAX_ROWS} x {TABLE_MAX_COLS}</span>
+              <div className="wysiwyg-table-size-grid-actions">
+                <button
+                  type="button"
+                  className="wysiwyg-table-size-grid-action"
+                  onClick={() => {
+                    setShowTableSizeGrid(false)
+                  }}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="wysiwyg-table-size-grid-action is-primary"
+                  onClick={() => {
+                    applyTableResize(tablePreviewRows, tablePreviewCols)
+                  }}
+                >
+                  应用
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <button type="button" className="wysiwyg-table-toolbar-btn" aria-label="表格左对齐">
           <img src={tableToolbarAlignLeftIcon} alt="" aria-hidden="true" className="h-4 w-4" />
         </button>

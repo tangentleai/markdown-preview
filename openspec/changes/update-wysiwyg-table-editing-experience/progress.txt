@@ -1,3 +1,4 @@
 [MONITOR] SESSION START | change=update-wysiwyg-table-editing-experience
 [STATE] RUN_COUNTER=1 | RUN_MAX=3
 [RUN 1] task=1.1-R1 worker_session=ses_37ef05b7cffeWjUOkxqUcHtXCb result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0001__task-1.1__ref-R1__20260221T164052Z/
+[RUN 2] task=1.2-R2 worker_session=ses_37ee62e9dffe8E7xZHI8TiACgn result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0002__task-1.2__ref-R2__20260221T165555Z/
