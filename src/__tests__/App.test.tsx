@@ -906,4 +906,33 @@ describe('App component', () => {
     expect(screen.getByRole('button', { name: '更新后标题' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: '二级标题' })).toBeNull()
   })
+
+  it('should resize outline width with live layout sync and keep width non-persistent', () => {
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem')
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const layout = screen.getByLabelText('大纲与编辑区联动布局') as HTMLDivElement
+    const resizeHandle = screen.getByRole('separator', { name: '拖拽调整大纲宽度' })
+
+    expect(layout.style.getPropertyValue('--outline-width')).toBe('260px')
+
+    fireEvent.pointerDown(resizeHandle, { pointerId: 1, button: 0, clientX: 260 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 120 })
+    expect(layout.style.getPropertyValue('--outline-width')).toBe('220px')
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 420 })
+    expect(layout.style.getPropertyValue('--outline-width')).toBe('420px')
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 340 })
+    expect(layout.style.getPropertyValue('--outline-width')).toBe('340px')
+
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 340 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 260 })
+    expect(layout.style.getPropertyValue('--outline-width')).toBe('340px')
+
+    expect(setItemSpy).not.toHaveBeenCalled()
+    setItemSpy.mockRestore()
+  })
 })

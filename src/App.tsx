@@ -22,6 +22,13 @@ interface OutlineHeading {
   index: number
 }
 
+const OUTLINE_WIDTH_MIN = 220
+const OUTLINE_WIDTH_MAX = 420
+const OUTLINE_WIDTH_DEFAULT = 260
+
+const clampOutlineWidth = (width: number): number =>
+  Math.min(OUTLINE_WIDTH_MAX, Math.max(OUTLINE_WIDTH_MIN, Math.round(width)))
+
 const normalizeOutlineHeadingText = (value: string): string =>
   value
     .replace(/`([^`]+)`/g, '$1')
@@ -139,7 +146,10 @@ Alice -> Bob : 回复
   const [statusText, setStatusText] = useState<string>('未保存（新文档）')
   const [jumpToHeadingIndex, setJumpToHeadingIndex] = useState<number | undefined>(undefined)
   const [jumpRequestNonce, setJumpRequestNonce] = useState(0)
+  const [outlineWidth, setOutlineWidth] = useState<number>(OUTLINE_WIDTH_DEFAULT)
+  const [isOutlineResizing, setIsOutlineResizing] = useState<boolean>(false)
   const openFileInputRef = useRef<HTMLInputElement>(null)
+  const outlineResizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
 
   const updateMarkdown = useCallback((nextMarkdown: string) => {
     setMarkdown((currentMarkdown) => {
@@ -280,6 +290,67 @@ Alice -> Bob : 回复
     }
   }, [isDirty])
 
+  useEffect(() => {
+    if (!isOutlineResizing) {
+      return
+    }
+
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    return () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+    }
+  }, [isOutlineResizing])
+
+  useEffect(() => {
+    if (!isOutlineResizing) {
+      return
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = outlineResizeRef.current
+      if (!dragState) {
+        return
+      }
+
+      const delta = event.clientX - dragState.startX
+      setOutlineWidth(clampOutlineWidth(dragState.startWidth + delta))
+    }
+
+    const stopResize = () => {
+      outlineResizeRef.current = null
+      setIsOutlineResizing(false)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', stopResize)
+    window.addEventListener('pointercancel', stopResize)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', stopResize)
+      window.removeEventListener('pointercancel', stopResize)
+    }
+  }, [isOutlineResizing])
+
+  const handleOutlineResizePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return
+    }
+
+    outlineResizeRef.current = {
+      startX: event.clientX,
+      startWidth: outlineWidth
+    }
+
+    setIsOutlineResizing(true)
+    event.preventDefault()
+  }, [outlineWidth])
+
   const saveButtonLabel = useMemo(() => (isDirty ? '保存*' : '保存'), [isDirty])
   const outlineHeadings = useMemo(() => toOutlineHeadings(markdown), [markdown])
 
@@ -367,7 +438,11 @@ Alice -> Bob : 回复
             {/* <p className="text-sm text-gray-600 px-1">
               当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
             </p> */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <div
+              className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--outline-width)_10px_minmax(0,1fr)]"
+              aria-label="大纲与编辑区联动布局"
+              style={{ '--outline-width': `${outlineWidth}px` } as React.CSSProperties}
+            >
               <aside className="lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
                 {outlineHeadings.length > 0 ? (
@@ -403,6 +478,21 @@ Alice -> Bob : 回复
                   <p className="text-sm text-gray-500">当前文档暂无 H1-H6 标题</p>
                 )}
               </aside>
+              <div className="hidden lg:flex items-stretch">
+                <button
+                  type="button"
+                  role="separator"
+                  aria-label="拖拽调整大纲宽度"
+                  aria-orientation="vertical"
+                  aria-valuemin={OUTLINE_WIDTH_MIN}
+                  aria-valuemax={OUTLINE_WIDTH_MAX}
+                  aria-valuenow={outlineWidth}
+                  onPointerDown={handleOutlineResizePointerDown}
+                  className={`w-full h-full rounded transition-colors ${
+                    isOutlineResizing ? 'bg-blue-500/50' : 'bg-gray-200 hover:bg-blue-300/70'
+                  }`}
+                />
+              </div>
               <div className="w-full" aria-label="编辑区右侧列容器">
                 <div className="w-full lg:mx-auto lg:w-[68%]" aria-label="编辑区布局容器">
                   <WysiwygEditor

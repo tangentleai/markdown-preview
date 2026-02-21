@@ -111,7 +111,7 @@
         "Run: SCOPE: GUI",
         "Run: 覆盖拖拽最小值、最大值、快速拖拽和释放后的稳定状态。"
       ],
-      "passes": false
+      "passes": true
     },
     "R10": {
       "category": "functional",
