@@ -43,6 +43,20 @@ const selectTextInElement = (element: HTMLElement, targetText: string): void => 
   selection?.addRange(range)
 }
 
+const selectTextAcrossNodes = (
+  startNode: Text,
+  startOffset: number,
+  endNode: Text,
+  endOffset: number
+): void => {
+  const selection = window.getSelection()
+  const range = document.createRange()
+  range.setStart(startNode, startOffset)
+  range.setEnd(endNode, endOffset)
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+}
+
 describe('App component', () => {
   it('should render the main application', () => {
     render(<App />)
@@ -405,6 +419,7 @@ describe('App component', () => {
 
     fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
     fireEvent.change(screen.getByLabelText('查找文本'), { target: { value: 'alpha' } })
+    fireEvent.click(screen.getByRole('button', { name: '切换到替换模式' }))
     fireEvent.change(screen.getByLabelText('替换文本'), { target: { value: 'ALPHA' } })
 
     fireEvent.click(screen.getByRole('button', { name: '查找下一个' }))
@@ -417,6 +432,39 @@ describe('App component', () => {
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     expect(textarea.value).toContain('ALPHA beta ALPHA beta')
+  })
+
+  it('should support bidirectional find navigation with wrap-around in WYSIWYG mode', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>alpha beta alpha beta</p>'
+    fireEvent.input(editor)
+
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    fireEvent.change(screen.getByLabelText('查找文本'), { target: { value: 'alpha' } })
+
+    const counter = screen.getByLabelText('查找结果计数')
+    const findPreviousButton = screen.getByRole('button', { name: '查找上一个' })
+    const findNextButton = screen.getByRole('button', { name: '查找下一个' })
+
+    expect(counter.textContent).toContain('0/2')
+
+    fireEvent.click(findNextButton)
+    expect(counter.textContent).toContain('1/2')
+
+    fireEvent.click(findNextButton)
+    expect(counter.textContent).toContain('2/2')
+
+    fireEvent.click(findNextButton)
+    expect(counter.textContent).toContain('1/2')
+
+    fireEvent.click(findPreviousButton)
+    expect(counter.textContent).toContain('2/2')
+
+    fireEvent.click(findPreviousButton)
+    expect(counter.textContent).toContain('1/2')
   })
 
   it.each([
@@ -514,19 +562,150 @@ describe('App component', () => {
 
   // removed button-based toggle; keyboard toggle test exists below
 
-  it('should open find/replace via Ctrl/Cmd+F and close via Esc', () => {
+  it('should close find toolbar with Esc from find input, replace input, and editor focus while restoring editor typing', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>Start</p>'
+    fireEvent.input(editor)
+
     const overlay = editor.parentElement?.querySelector('[aria-label="查找替换工具栏"]') as HTMLElement
     expect(overlay.getAttribute('aria-hidden')).toBe('true')
 
+    const typeCharacterAtCaret = (char: string) => {
+      const selection = window.getSelection()
+      const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+      expect(range).toBeTruthy()
+      if (!range) {
+        return
+      }
+
+      const container = range.startContainer
+      if (container.nodeType === Node.TEXT_NODE) {
+        const textNode = container as Text
+        const source = textNode.textContent ?? ''
+        const offset = range.startOffset
+        textNode.textContent = `${source.slice(0, offset)}${char}${source.slice(offset)}`
+
+        const nextRange = document.createRange()
+        nextRange.setStart(textNode, offset + 1)
+        nextRange.collapse(true)
+        selection?.removeAllRanges()
+        selection?.addRange(nextRange)
+      } else {
+        const textNode = document.createTextNode(char)
+        range.insertNode(textNode)
+
+        const nextRange = document.createRange()
+        nextRange.setStartAfter(textNode)
+        nextRange.collapse(true)
+        selection?.removeAllRanges()
+        selection?.addRange(nextRange)
+      }
+
+      fireEvent.input(editor)
+    }
+
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    const findInput = screen.getByLabelText('查找文本') as HTMLInputElement
+    findInput.focus()
+    fireEvent.keyDown(findInput, { key: 'Escape' })
+    await waitFor(() => {
+      expect(overlay.getAttribute('aria-hidden')).toBe('true')
+      expect(document.activeElement).toBe(editor)
+    })
+    typeCharacterAtCaret('A')
+    expect(editor.textContent).toContain('StartA')
+
     fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
     expect(overlay.getAttribute('aria-hidden')).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: '切换到替换模式' }))
+    const replaceInput = screen.getByLabelText('替换文本') as HTMLInputElement
+    replaceInput.focus()
+    fireEvent.keyDown(replaceInput, { key: 'Escape' })
+    await waitFor(() => {
+      expect(overlay.getAttribute('aria-hidden')).toBe('true')
+      expect(document.activeElement).toBe(editor)
+    })
+    typeCharacterAtCaret('B')
+    expect(editor.textContent).toContain('StartAB')
 
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    expect(overlay.getAttribute('aria-hidden')).toBe('false')
+    editor.focus()
     fireEvent.keyDown(editor, { key: 'Escape' })
-    expect(overlay.getAttribute('aria-hidden')).toBe('true')
+    await waitFor(() => {
+      expect(overlay.getAttribute('aria-hidden')).toBe('true')
+      expect(document.activeElement).toBe(editor)
+    })
+    typeCharacterAtCaret('C')
+    expect(editor.textContent).toContain('StartABC')
+  })
+
+  it.each([
+    { label: 'Ctrl+F', modifiers: { ctrlKey: true } },
+    { label: 'Cmd+F', modifiers: { metaKey: true } }
+  ])('should seed normalized selected text and index matches via $label', ({ modifiers }) => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>Alpha</p><p>beta</p><p>Alpha beta marker</p>'
+
+    const firstNode = editor.querySelector('p')?.firstChild as Text
+    const secondNode = editor.querySelectorAll('p')[1]?.firstChild as Text
+    selectTextAcrossNodes(firstNode, 0, secondNode, secondNode.textContent?.length ?? 0)
+
+    fireEvent.keyDown(editor, { key: 'f', ...modifiers })
+
+    const findInput = screen.getByLabelText('查找文本') as HTMLInputElement
+    expect(findInput.value).toBe('Alpha beta')
+    expect(screen.getByLabelText('查找结果计数').textContent).toContain('1/1')
+  })
+
+  it('should navigate to next match by Enter and wrap from last to first', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+    editor.innerHTML = '<p>alpha beta alpha gamma</p>'
+
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    const findInput = screen.getByLabelText('查找文本') as HTMLInputElement
+    fireEvent.change(findInput, { target: { value: 'alpha' } })
+
+    const counter = screen.getByLabelText('查找结果计数')
+    expect(counter.textContent).toContain('0')
+
+    findInput.focus()
+    fireEvent.keyDown(findInput, { key: 'Enter' })
+    expect(document.activeElement).toBe(findInput)
+    expect(counter.textContent).toContain('1/2')
+
+    fireEvent.keyDown(findInput, { key: 'Enter' })
+    expect(document.activeElement).toBe(findInput)
+    expect(counter.textContent).toContain('2/2')
+
+    fireEvent.keyDown(findInput, { key: 'Enter' })
+    expect(counter.textContent).toContain('1/2')
+  })
+
+  it('should default to find mode and reset to find mode after close and reopen', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
+
+    const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
+
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    expect(screen.queryByLabelText('替换文本')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '切换到替换模式' }))
+    expect(screen.getByLabelText('替换文本')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭查找替换工具栏' }))
+    fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
+    expect(screen.queryByLabelText('替换文本')).toBeNull()
   })
 
   it('should render mermaid diagram in WYSIWYG and round-trip to markdown', async () => {

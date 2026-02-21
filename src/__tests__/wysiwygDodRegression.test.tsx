@@ -189,6 +189,7 @@ describe('DoD CLI regression suite', () => {
 
     fireEvent.keyDown(editor, { key: 'f', ctrlKey: true })
     fireEvent.change(screen.getByLabelText('查找文本'), { target: { value: 'alpha' } })
+    fireEvent.click(screen.getByRole('button', { name: '切换到替换模式' }))
     fireEvent.change(screen.getByLabelText('替换文本'), { target: { value: 'ALPHA' } })
 
     fireEvent.click(screen.getByRole('button', { name: '查找下一个' }))

@@ -8,11 +8,26 @@ import {
   type BlockInputRuleTransaction
 } from '../utils/wysiwygBlockInputRules'
 import { matchInlineStyleRule, type InlineStyleRuleMatch } from '../utils/wysiwygInlineStyleRules'
+import {
+  findTextMatches,
+  getRegexQueryError,
+  replaceRegexMatch,
+  resolveFindOptions,
+  type FindMatchOptions,
+  type TextMatchRange
+} from '../utils/findMatchEngine'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import mermaid from 'mermaid'
 import { encode as encodePlantUml } from 'plantuml-encoder'
 import 'monaco-editor/min/vs/editor/editor.main.css'
+import findPreviousIcon from '../assets/iconfont/find-previous.svg'
+import findNextIcon from '../assets/iconfont/find-next.svg'
+import replaceCurrentIcon from '../assets/iconfont/replace-current.svg'
+import replaceAllIcon from '../assets/iconfont/replace-all.svg'
+import closeSearchIcon from '../assets/iconfont/close-search.svg'
+import caseSensitiveIcon from '../assets/iconfont/case-sensitive.svg'
+import wholeWordIcon from '../assets/iconfont/whole-word.svg'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -20,6 +35,8 @@ interface WysiwygEditorProps {
   jumpToHeadingIndex?: number
   jumpRequestNonce?: number
 }
+
+type IconButtonInteractionState = 'default' | 'hover' | 'active'
 
 type MonacoApi = typeof import('monaco-editor')
 
@@ -291,6 +308,35 @@ const setCaretAfterNode = (node: Node): void => {
   selection.addRange(range)
 }
 
+const setCaretToEditorEnd = (editor: HTMLElement): void => {
+  const selection = window.getSelection()
+  if (!selection) {
+    return
+  }
+
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+  let current = walker.nextNode()
+  let lastTextNode: Text | null = null
+
+  while (current) {
+    lastTextNode = current as Text
+    current = walker.nextNode()
+  }
+
+  const range = document.createRange()
+  if (lastTextNode) {
+    const endOffset = lastTextNode.textContent?.length ?? 0
+    range.setStart(lastTextNode, endOffset)
+  } else {
+    range.selectNodeContents(editor)
+    range.collapse(false)
+  }
+
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
 const isSelectionInsideEditor = (selection: Selection, editor: HTMLElement): boolean => {
   const anchorNode = selection.anchorNode
   if (!anchorNode) {
@@ -300,25 +346,151 @@ const isSelectionInsideEditor = (selection: Selection, editor: HTMLElement): boo
   return editor.contains(anchorNode)
 }
 
-const findPlainTextMatches = (source: string, query: string): Array<{ start: number; end: number }> => {
-  if (!query) {
-    return []
+const normalizeSelectionToFindQuery = (value: string): string =>
+  value
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const getNormalizedSelectionInEditor = (editor: HTMLElement): string => {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return ''
   }
 
-  const matches: Array<{ start: number; end: number }> = []
-  let cursor = 0
+  const range = selection.getRangeAt(0)
+  if (!editor.contains(range.commonAncestorContainer)) {
+    return ''
+  }
 
-  while (cursor <= source.length - query.length) {
-    const foundIndex = source.indexOf(query, cursor)
-    if (foundIndex < 0) {
-      break
+  return normalizeSelectionToFindQuery(selection.toString())
+}
+
+const clearFindHighlights = (editor: HTMLElement): void => {
+  const highlights = Array.from(editor.querySelectorAll('span[data-find-highlight="true"]')) as HTMLSpanElement[]
+  highlights.forEach((highlight) => {
+    const parent = highlight.parentNode
+    if (!parent) {
+      return
     }
 
-    matches.push({ start: foundIndex, end: foundIndex + query.length })
-    cursor = foundIndex + query.length
+    while (highlight.firstChild) {
+      parent.insertBefore(highlight.firstChild, highlight)
+    }
+
+    parent.removeChild(highlight)
+    parent.normalize()
+  })
+}
+
+const applyFindHighlights = (
+  editor: HTMLElement,
+  matches: Array<{ start: number; end: number }>,
+  activeIndex: number
+): void => {
+  clearFindHighlights(editor)
+
+  if (matches.length === 0) {
+    return
   }
 
-  return matches
+  const segments: Array<{ node: Text; start: number; end: number }> = []
+  const walker = createEditorTextWalker(editor)
+  let traversed = 0
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text
+    const text = node.textContent ?? ''
+    const length = text.length
+    if (length === 0) {
+      continue
+    }
+    segments.push({ node, start: traversed, end: traversed + length })
+    traversed += length
+  }
+
+  let matchPointer = 0
+
+  segments.forEach((segment) => {
+    while (matchPointer < matches.length && matches[matchPointer].end <= segment.start) {
+      matchPointer += 1
+    }
+
+    let overlapPointer = matchPointer
+    while (overlapPointer < matches.length && matches[overlapPointer].start < segment.end) {
+      overlapPointer += 1
+    }
+
+    if (overlapPointer === matchPointer) {
+      return
+    }
+
+    const originalText = segment.node.textContent ?? ''
+    const fragment = document.createDocumentFragment()
+    let localCursor = segment.start
+
+    for (let index = matchPointer; index < overlapPointer; index += 1) {
+      const overlapStart = Math.max(matches[index].start, segment.start)
+      const overlapEnd = Math.min(matches[index].end, segment.end)
+
+      if (overlapStart > localCursor) {
+        const plainText = originalText.slice(localCursor - segment.start, overlapStart - segment.start)
+        if (plainText) {
+          fragment.append(document.createTextNode(plainText))
+        }
+      }
+
+      if (overlapEnd > overlapStart) {
+        const matchText = originalText.slice(overlapStart - segment.start, overlapEnd - segment.start)
+        if (matchText) {
+          const highlight = document.createElement('span')
+          highlight.dataset.findHighlight = 'true'
+          highlight.dataset.findMatchIndex = String(index)
+          const isActiveMatch = index === activeIndex
+          highlight.className = isActiveMatch ? 'wysiwyg-find-hit wysiwyg-find-hit-active' : 'wysiwyg-find-hit'
+          highlight.dataset.findHighlightState = isActiveMatch ? 'active' : 'all'
+          highlight.textContent = matchText
+          fragment.append(highlight)
+        }
+      }
+
+      localCursor = overlapEnd
+    }
+
+    if (localCursor < segment.end) {
+      const plainTail = originalText.slice(localCursor - segment.start)
+      if (plainTail) {
+        fragment.append(document.createTextNode(plainTail))
+      }
+    }
+
+    segment.node.replaceWith(fragment)
+  })
+
+  const highlightedNodes = Array.from(editor.querySelectorAll('span[data-find-highlight="true"]')) as HTMLSpanElement[]
+  highlightedNodes.forEach((node) => {
+    const isActiveMatch = Number(node.dataset.findMatchIndex) === activeIndex
+    node.classList.toggle('wysiwyg-find-hit-active', isActiveMatch)
+    node.dataset.findHighlightState = isActiveMatch ? 'active' : 'all'
+  })
+}
+
+const isElementVisibleInViewport = (element: HTMLElement): boolean => {
+  const rect = element.getBoundingClientRect()
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+  const verticallyVisible = rect.bottom > 0 && rect.top < viewportHeight
+  const horizontallyVisible = rect.right > 0 && rect.left < viewportWidth
+  return verticallyVisible && horizontallyVisible
+}
+
+const scrollFindMatchIntoViewIfNeeded = (editor: HTMLElement, targetIndex: number): void => {
+  const target = editor.querySelector(`[data-find-match-index="${targetIndex}"]`) as HTMLElement | null
+  if (!target || isElementVisibleInViewport(target)) {
+    return
+  }
+
+  target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
 const createEditorTextWalker = (editor: HTMLElement) =>
@@ -338,13 +510,55 @@ const createEditorTextWalker = (editor: HTMLElement) =>
     }
   })
 
-const getEditorPlainText = (editor: HTMLElement): string => {
-  const walker = createEditorTextWalker(editor)
-  let text = ''
-  while (walker.nextNode()) {
-    text += (walker.currentNode as Text).textContent ?? ''
+const getTopLevelTextContainer = (editor: HTMLElement, node: Text): HTMLElement | null => {
+  let current = node.parentElement
+  while (current && current.parentElement && current.parentElement !== editor) {
+    current = current.parentElement
   }
-  return text.replace(/\u00A0/g, ' ')
+  return current
+}
+
+const getEditorPlainTextMetadata = (
+  editor: HTMLElement
+): {
+  text: string
+  wordBoundaryBreaks: Set<number>
+} => {
+  const walker = createEditorTextWalker(editor)
+  const chunks: string[] = []
+  const wordBoundaryBreaks = new Set<number>()
+  let traversed = 0
+  let previousTopLevelContainer: HTMLElement | null = null
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text
+    const value = (node.textContent ?? '').replace(/\u00A0/g, ' ')
+    if (!value) {
+      continue
+    }
+
+    const currentTopLevelContainer = getTopLevelTextContainer(editor, node)
+    if (
+      previousTopLevelContainer &&
+      currentTopLevelContainer &&
+      previousTopLevelContainer !== currentTopLevelContainer
+    ) {
+      wordBoundaryBreaks.add(traversed)
+    }
+
+    chunks.push(value)
+    traversed += value.length
+    previousTopLevelContainer = currentTopLevelContainer
+  }
+
+  return {
+    text: chunks.join(''),
+    wordBoundaryBreaks
+  }
+}
+
+const getEditorPlainText = (editor: HTMLElement): string => {
+  return getEditorPlainTextMetadata(editor).text
 }
 
 const resolveTextPosition = (
@@ -426,24 +640,24 @@ const replaceEditorRangeByOffsets = (
   return true
 }
 
-const replaceAllInEditorTextNodes = (editor: HTMLElement, query: string, replacement: string): number => {
-  if (!query) {
+const replaceAllByMatchRanges = (
+  editor: HTMLElement,
+  matches: TextMatchRange[],
+  getReplacement: (match: TextMatchRange) => string
+): number => {
+  if (matches.length === 0) {
     return 0
   }
 
-  const walker = createEditorTextWalker(editor)
   let replaceCount = 0
 
-  while (walker.nextNode()) {
-    const textNode = walker.currentNode as Text
-    const source = textNode.textContent ?? ''
-    if (!source.includes(query)) {
-      continue
+  for (let index = matches.length - 1; index >= 0; index -= 1) {
+    const target = matches[index]
+    const replacement = getReplacement(target)
+    const replaced = replaceEditorRangeByOffsets(editor, target.start, target.end, replacement)
+    if (replaced) {
+      replaceCount += 1
     }
-
-    const parts = source.split(query)
-    replaceCount += parts.length - 1
-    textNode.textContent = parts.join(replacement)
   }
 
   return replaceCount
@@ -681,9 +895,30 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const monacoThemeReadyRef = useRef(false)
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
+  const [isCaseSensitiveFind, setIsCaseSensitiveFind] = useState(false)
+  const [isWholeWordFind, setIsWholeWordFind] = useState(false)
+  const [isRegexFind, setIsRegexFind] = useState(false)
+  const [findRegexError, setFindRegexError] = useState<string | null>(null)
   const [activeFindIndex, setActiveFindIndex] = useState(-1)
   const [findResultCount, setFindResultCount] = useState(0)
   const [showFindToolbar, setShowFindToolbar] = useState(false)
+  const [findToolbarMode, setFindToolbarMode] = useState<'find' | 'replace'>('find')
+  const [iconButtonStates, setIconButtonStates] = useState<Record<string, IconButtonInteractionState>>({})
+
+  const getFindOptions = (): FindMatchOptions =>
+    resolveFindOptions({
+      caseSensitive: isCaseSensitiveFind,
+      wholeWord: isWholeWordFind,
+      regex: isRegexFind
+    })
+
+  const getFindMatches = (editor: HTMLElement, query: string): TextMatchRange[] => {
+    const metadata = getEditorPlainTextMetadata(editor)
+    return findTextMatches(metadata.text, query, {
+      ...getFindOptions(),
+      wordBoundaryBreaks: metadata.wordBoundaryBreaks
+    })
+  }
 
   const looksLikeMarkdown = (value: string): boolean => {
     if (!value || !/\S/.test(value)) {
@@ -1087,14 +1322,28 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }, [jumpToHeadingIndex, jumpRequestNonce])
 
   useEffect(() => {
+    if (!isRegexFind || !findQuery) {
+      setFindRegexError(null)
+      return
+    }
+
+    setFindRegexError(getRegexQueryError(findQuery, isCaseSensitiveFind))
+  }, [findQuery, isCaseSensitiveFind, isRegexFind])
+
+  useEffect(() => {
     if (!editorRef.current || !findQuery) {
       setFindResultCount(0)
       setActiveFindIndex(-1)
       return
     }
 
-    const currentPlainText = getEditorPlainText(editorRef.current)
-    const matches = findPlainTextMatches(currentPlainText, findQuery)
+    if (findRegexError) {
+      setFindResultCount(0)
+      setActiveFindIndex(-1)
+      return
+    }
+
+    const matches = getFindMatches(editorRef.current, findQuery)
     setFindResultCount(matches.length)
     setActiveFindIndex((current) => {
       if (matches.length === 0) {
@@ -1107,13 +1356,37 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
       return Math.min(current, matches.length - 1)
     })
-  }, [findQuery, markdown])
+  }, [findQuery, findRegexError, isCaseSensitiveFind, isRegexFind, isWholeWordFind, markdown])
+
+  useEffect(() => {
+    if (!editorRef.current) {
+      return
+    }
+
+    if (!showFindToolbar || !findQuery || findRegexError) {
+      clearFindHighlights(editorRef.current)
+      return
+    }
+
+    const matches = getFindMatches(editorRef.current, findQuery)
+    applyFindHighlights(editorRef.current, matches, activeFindIndex)
+
+    if (activeFindIndex >= 0 && activeFindIndex < matches.length) {
+      scrollFindMatchIntoViewIfNeeded(editorRef.current, activeFindIndex)
+    }
+  }, [activeFindIndex, findQuery, findRegexError, isCaseSensitiveFind, isRegexFind, isWholeWordFind, markdown, showFindToolbar])
 
   useEffect(() => {
     if (showFindToolbar) {
       findInputRef.current?.focus()
     }
   }, [showFindToolbar])
+
+  useEffect(() => {
+    if (isRegexFind && isWholeWordFind) {
+      setIsWholeWordFind(false)
+    }
+  }, [isRegexFind, isWholeWordFind])
 
   const handleInput = () => {
     if (!editorRef.current) {
@@ -1137,13 +1410,14 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     event.dataTransfer.dropEffect = 'copy'
   }
 
-  const handleFindNext = () => {
-    if (!editorRef.current || !findQuery) {
+  const navigateFindResult = (direction: 'next' | 'previous') => {
+    if (!editorRef.current || !findQuery || findRegexError) {
+      setFindResultCount(0)
+      setActiveFindIndex(-1)
       return
     }
 
-    const currentPlainText = getEditorPlainText(editorRef.current)
-    const matches = findPlainTextMatches(currentPlainText, findQuery)
+    const matches = getFindMatches(editorRef.current, findQuery)
     setFindResultCount(matches.length)
 
     if (matches.length === 0) {
@@ -1151,14 +1425,77 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    const nextIndex = activeFindIndex < 0 ? 0 : (activeFindIndex + 1) % matches.length
-    const nextMatch = matches[nextIndex]
-    const selected = selectEditorRangeByOffsets(editorRef.current, nextMatch.start, nextMatch.end)
+    const targetIndex =
+      direction === 'next'
+        ? activeFindIndex < 0
+          ? 0
+          : (activeFindIndex + 1) % matches.length
+        : activeFindIndex < 0
+          ? matches.length - 1
+          : (activeFindIndex - 1 + matches.length) % matches.length
 
-    if (selected) {
-      editorRef.current.focus()
-      setActiveFindIndex(nextIndex)
+    setActiveFindIndex(targetIndex)
+  }
+
+  const handleFindNext = () => {
+    navigateFindResult('next')
+  }
+
+  const handleFindPrevious = () => {
+    navigateFindResult('previous')
+  }
+
+  const closeFindToolbarAndRestoreEditorFocus = () => {
+    setShowFindToolbar(false)
+    setFindToolbarMode('find')
+
+    window.requestAnimationFrame(() => {
+      const editor = editorRef.current
+      if (!editor) {
+        return
+      }
+
+      editor.focus({ preventScroll: true })
+      setCaretToEditorEnd(editor)
+    })
+  }
+
+  const handleFindInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape' && showFindToolbar) {
+      event.preventDefault()
+      event.stopPropagation()
+      closeFindToolbarAndRestoreEditorFocus()
+      return
     }
+
+    if (event.key !== 'Enter') {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    handleFindNext()
+
+    window.requestAnimationFrame(() => {
+      const input = findInputRef.current
+      if (!input) {
+        return
+      }
+
+      input.focus({ preventScroll: true })
+      const caret = input.value.length
+      input.setSelectionRange(caret, caret)
+    })
+  }
+
+  const handleReplaceInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Escape' || !showFindToolbar) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    closeFindToolbarAndRestoreEditorFocus()
   }
 
   const syncMarkdownFromEditor = () => {
@@ -1174,12 +1511,13 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }
 
   const handleReplaceCurrent = () => {
-    if (!editorRef.current || !findQuery) {
+    if (!editorRef.current || !findQuery || findRegexError) {
       return
     }
 
-    const currentPlainText = getEditorPlainText(editorRef.current)
-    const matches = findPlainTextMatches(currentPlainText, findQuery)
+    clearFindHighlights(editorRef.current)
+    const plainText = getEditorPlainText(editorRef.current)
+    const matches = getFindMatches(editorRef.current, findQuery)
     setFindResultCount(matches.length)
 
     if (matches.length === 0) {
@@ -1189,7 +1527,18 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     const targetIndex = activeFindIndex < 0 ? 0 : Math.min(activeFindIndex, matches.length - 1)
     const targetMatch = matches[targetIndex]
-    const replaced = replaceEditorRangeByOffsets(editorRef.current, targetMatch.start, targetMatch.end, replaceQuery)
+    const matchedText = plainText.slice(targetMatch.start, targetMatch.end)
+    let replacementText = replaceQuery
+    if (isRegexFind) {
+      try {
+        replacementText = replaceRegexMatch(matchedText, findQuery, replaceQuery, isCaseSensitiveFind)
+      } catch (error) {
+        setFindRegexError(getRegexQueryError(findQuery, isCaseSensitiveFind) ?? (error instanceof Error ? error.message : '正则表达式无效'))
+        return
+      }
+    }
+
+    const replaced = replaceEditorRangeByOffsets(editorRef.current, targetMatch.start, targetMatch.end, replacementText)
 
     if (!replaced) {
       return
@@ -1197,8 +1546,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     syncMarkdownFromEditor()
 
-    const refreshedPlainText = getEditorPlainText(editorRef.current)
-    const refreshedMatches = findPlainTextMatches(refreshedPlainText, findQuery)
+    const refreshedMatches = getFindMatches(editorRef.current, findQuery)
     setFindResultCount(refreshedMatches.length)
 
     if (refreshedMatches.length === 0) {
@@ -1213,18 +1561,135 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }
 
   const handleReplaceAll = () => {
-    if (!editorRef.current || !findQuery) {
+    if (!editorRef.current || !findQuery || findRegexError) {
       return
     }
 
-    const replaceCount = replaceAllInEditorTextNodes(editorRef.current, findQuery, replaceQuery)
+    clearFindHighlights(editorRef.current)
+    const plainText = getEditorPlainText(editorRef.current)
+    const matches = getFindMatches(editorRef.current, findQuery)
+    const replaceCount = replaceAllByMatchRanges(editorRef.current, matches, (match) => {
+      if (!isRegexFind) {
+        return replaceQuery
+      }
+
+      const matchedText = plainText.slice(match.start, match.end)
+      return replaceRegexMatch(matchedText, findQuery, replaceQuery, isCaseSensitiveFind)
+    })
     if (replaceCount === 0) {
       return
     }
 
     syncMarkdownFromEditor()
-    setFindResultCount(0)
-    setActiveFindIndex(-1)
+    const refreshedMatches = getFindMatches(editorRef.current, findQuery)
+    setFindResultCount(refreshedMatches.length)
+
+    if (refreshedMatches.length === 0) {
+      setActiveFindIndex(-1)
+      return
+    }
+
+    setActiveFindIndex(0)
+    const firstMatch = refreshedMatches[0]
+    selectEditorRangeByOffsets(editorRef.current, firstMatch.start, firstMatch.end)
+  }
+
+  const hasFindMatches = findResultCount > 0
+  const disableFindActions = !hasFindMatches || Boolean(findRegexError)
+  const isReplaceMode = findToolbarMode === 'replace'
+  const iconButtonBaseClass =
+    'wysiwyg-find-icon-btn inline-flex h-8 w-8 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 disabled:cursor-not-allowed disabled:opacity-50'
+  const updateIconButtonState = (buttonId: string, nextState: IconButtonInteractionState) => {
+    setIconButtonStates((current) => {
+      if ((current[buttonId] ?? 'default') === nextState) {
+        return current
+      }
+      return {
+        ...current,
+        [buttonId]: nextState
+      }
+    })
+  }
+  const getIconButtonInteractionHandlers = (buttonId: string, disabled: boolean) => ({
+    onMouseEnter: () => {
+      if (!disabled) {
+        updateIconButtonState(buttonId, 'hover')
+      }
+    },
+    onMouseLeave: () => {
+      updateIconButtonState(buttonId, 'default')
+    },
+    onMouseDown: () => {
+      if (!disabled) {
+        updateIconButtonState(buttonId, 'active')
+      }
+    },
+    onMouseUp: () => {
+      if (!disabled) {
+        updateIconButtonState(buttonId, 'hover')
+      }
+    },
+    onBlur: () => {
+      updateIconButtonState(buttonId, 'default')
+    }
+  })
+  const getIconButtonStyle = (buttonId: string, options?: { pressed?: boolean; disabled?: boolean }) => {
+    const disabled = options?.disabled ?? false
+    const pressed = options?.pressed ?? false
+    if (disabled) {
+      return undefined
+    }
+
+    const state = iconButtonStates[buttonId] ?? 'default'
+    if (state === 'active') {
+      return {
+        backgroundColor: 'rgb(147, 197, 253)',
+        borderColor: 'rgb(30, 64, 175)',
+        color: 'rgb(30, 58, 138)'
+      }
+    }
+    if (state === 'hover') {
+      if (pressed) {
+        return {
+          backgroundColor: 'rgb(191, 219, 254)',
+          borderColor: 'rgb(29, 78, 216)',
+          color: 'rgb(30, 64, 175)'
+        }
+      }
+      return {
+        backgroundColor: 'rgb(239, 246, 255)',
+        borderColor: 'rgb(59, 130, 246)',
+        color: 'rgb(30, 64, 175)'
+      }
+    }
+    if (pressed) {
+      return {
+        backgroundColor: 'rgb(219, 234, 254)',
+        borderColor: 'rgb(37, 99, 235)',
+        color: 'rgb(30, 58, 138)'
+      }
+    }
+    return undefined
+  }
+
+  const toggleCaseSensitiveFind = () => {
+    setIsCaseSensitiveFind((current) => !current)
+  }
+
+  const toggleWholeWordFind = () => {
+    if (isRegexFind) {
+      return
+    }
+    setIsWholeWordFind((current) => !current)
+  }
+
+  const toggleRegexFind = () => {
+    setIsRegexFind((current) => {
+      if (!current) {
+        setIsWholeWordFind(false)
+      }
+      return !current
+    })
   }
 
   const applyInlineShortcut = (tagName: 'strong' | 'em' | 'code'): boolean => {
@@ -1337,7 +1802,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
     if (event.key === 'Escape' && showFindToolbar) {
       event.preventDefault()
-      setShowFindToolbar(false)
+      closeFindToolbarAndRestoreEditorFocus()
       return
     }
 
@@ -1418,6 +1883,23 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       if (normalizedKey === 'f') {
         event.preventDefault()
         setShowFindToolbar(true)
+        setFindToolbarMode('find')
+
+        const selectedQuery = getNormalizedSelectionInEditor(editorRef.current)
+        if (!selectedQuery) {
+          return
+        }
+
+        setFindQuery(selectedQuery)
+        const matches = getFindMatches(editorRef.current, selectedQuery)
+        setFindResultCount(matches.length)
+
+        if (matches.length === 0) {
+          setActiveFindIndex(-1)
+          return
+        }
+
+        setActiveFindIndex(0)
         return
       }
       if (normalizedKey === 'b' && applyInlineShortcut('strong')) {
@@ -1909,19 +2391,20 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
   return (
     <div className="relative bg-white rounded-lg shadow-md p-4">
-      <div
-        aria-label="查找替换工具栏"
-        aria-hidden={!showFindToolbar}
-        className={`pointer-events-auto absolute right-3 top-3 z-20 w-[min(640px,90%)] rounded border border-gray-200 bg-white p-3 shadow-lg transition-all duration-200 ${
-          showFindToolbar ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
-        }`}
-      >
+        <div
+          aria-label="查找替换工具栏"
+          aria-hidden={!showFindToolbar}
+          className={`wysiwyg-find-toolbar pointer-events-auto absolute right-3 top-3 z-20 w-[min(640px,90%)] rounded border border-gray-200 bg-white p-3 shadow-lg transition-all duration-200 ${
+            showFindToolbar ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+          }`}
+        >
         <div className="flex items-start gap-3">
           <div className="flex-1 flex flex-col gap-2 sm:flex-row">
             <input
               ref={findInputRef}
               type="text"
               value={findQuery}
+              onKeyDown={handleFindInputKeyDown}
               onChange={(event) => {
                 setFindQuery(event.target.value)
               }}
@@ -1929,51 +2412,166 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
               placeholder="查找文本"
               aria-label="查找文本"
             />
-            <input
-              type="text"
-              value={replaceQuery}
-              onChange={(event) => {
-                setReplaceQuery(event.target.value)
-              }}
-              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-              placeholder="替换为"
-              aria-label="替换文本"
-            />
+            {isReplaceMode ? (
+              <input
+                type="text"
+                value={replaceQuery}
+                onKeyDown={handleReplaceInputKeyDown}
+                onChange={(event) => {
+                  setReplaceQuery(event.target.value)
+                }}
+                className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                placeholder="替换为"
+                aria-label="替换文本"
+              />
+            ) : null}
           </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded border border-gray-200 bg-gray-50 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setFindToolbarMode('find')
+                }}
+                aria-label="切换到查找模式"
+                aria-pressed={!isReplaceMode}
+                className={`rounded px-2 py-1 text-sm transition-colors ${
+                  !isReplaceMode
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-700 hover:bg-white'
+                }`}
+              >
+                查找
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFindToolbarMode('replace')
+                }}
+                aria-label="切换到替换模式"
+                aria-pressed={isReplaceMode}
+                className={`rounded px-2 py-1 text-sm transition-colors ${
+                  isReplaceMode
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-700 hover:bg-white'
+                }`}
+              >
+                替换
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={closeFindToolbarAndRestoreEditorFocus}
+              {...getIconButtonInteractionHandlers('close', false)}
+              aria-label="关闭查找替换工具栏"
+              className={iconButtonBaseClass}
+              style={getIconButtonStyle('close')}
+            >
+              <img src={closeSearchIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="wysiwyg-find-toolbar mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowFindToolbar(false)}
-            aria-label="关闭查找替换工具栏"
-            className="rounded bg-gray-100 px-2 py-1 text-sm text-gray-700 hover:bg-gray-200"
+            onClick={toggleCaseSensitiveFind}
+            {...getIconButtonInteractionHandlers('case-sensitive', false)}
+            aria-label="区分大小写"
+            aria-pressed={isCaseSensitiveFind}
+            className={`${iconButtonBaseClass} ${
+              isCaseSensitiveFind
+                ? 'wysiwyg-find-icon-btn-pressed'
+                : ''
+            }`}
+            style={getIconButtonStyle('case-sensitive', { pressed: isCaseSensitiveFind })}
           >
-            关闭
+            <img src={caseSensitiveIcon} alt="" aria-hidden="true" className="h-4 w-4" />
           </button>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleWholeWordFind}
+            {...getIconButtonInteractionHandlers('whole-word', isRegexFind)}
+            aria-label="查找整个单词"
+            aria-pressed={isWholeWordFind}
+            disabled={isRegexFind}
+            className={`${iconButtonBaseClass} ${
+              isWholeWordFind
+                ? 'wysiwyg-find-icon-btn-pressed'
+                : ''
+            }`}
+            style={getIconButtonStyle('whole-word', { pressed: isWholeWordFind, disabled: isRegexFind })}
+          >
+            <img src={wholeWordIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleRegexFind}
+            aria-label="正则模式"
+            aria-pressed={isRegexFind}
+            className={`rounded px-2 py-1 text-sm transition-colors ${
+              isRegexFind
+                ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            正则模式
+          </button>
+          <button
+            type="button"
+            onClick={handleFindPrevious}
+            {...getIconButtonInteractionHandlers('find-previous', disableFindActions)}
+            aria-label="查找上一个"
+            disabled={disableFindActions}
+            className={iconButtonBaseClass}
+            style={getIconButtonStyle('find-previous', { disabled: disableFindActions })}
+          >
+            <img src={findPreviousIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+          </button>
           <button
             type="button"
             onClick={handleFindNext}
-            className="rounded bg-slate-100 px-2 py-1 text-sm text-slate-700 hover:bg-slate-200"
+            {...getIconButtonInteractionHandlers('find-next', disableFindActions)}
+            aria-label="查找下一个"
+            disabled={disableFindActions}
+            className={iconButtonBaseClass}
+            style={getIconButtonStyle('find-next', { disabled: disableFindActions })}
           >
-            查找下一个
+            <img src={findNextIcon} alt="" aria-hidden="true" className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={handleReplaceCurrent}
-            className="rounded bg-blue-100 px-2 py-1 text-sm text-blue-700 hover:bg-blue-200"
-          >
-            替换当前
-          </button>
-          <button
-            type="button"
-            onClick={handleReplaceAll}
-            className="rounded bg-indigo-100 px-2 py-1 text-sm text-indigo-700 hover:bg-indigo-200"
-          >
-            全部替换
-          </button>
+          {isReplaceMode ? (
+            <>
+              <button
+                type="button"
+                onClick={handleReplaceCurrent}
+                {...getIconButtonInteractionHandlers('replace-current', disableFindActions)}
+                aria-label="替换当前"
+                disabled={disableFindActions}
+                className={iconButtonBaseClass}
+                style={getIconButtonStyle('replace-current', { disabled: disableFindActions })}
+              >
+                <img src={replaceCurrentIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleReplaceAll}
+                {...getIconButtonInteractionHandlers('replace-all', disableFindActions)}
+                aria-label="替换全部"
+                disabled={disableFindActions}
+                className={iconButtonBaseClass}
+                style={getIconButtonStyle('replace-all', { disabled: disableFindActions })}
+              >
+                <img src={replaceAllIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </>
+          ) : null}
+          {findRegexError ? (
+            <span className="text-xs text-red-600" aria-label="查找错误提示">
+              {findRegexError}
+            </span>
+          ) : null}
           <span className="text-xs text-gray-600" aria-label="查找结果计数">
             匹配：
-            {findResultCount === 0 ? '0' : `${activeFindIndex + 1}/${findResultCount}`}
+            {findResultCount === 0 ? '0/N' : `${activeFindIndex + 1}/${findResultCount}`}
           </span>
         </div>
       </div>
