@@ -50,7 +50,7 @@
         "Run: 使用 GUI MCP runbook 逐个 hover/focus icon 按钮，验证提示文案存在且视觉样式一致。",
         "Run: 使用 GUI MCP runbook 在移动端视口模拟 long-press 触发提示并验证可见性。"
       ],
-      "passes": false
+      "passes": true
     }
   }
 }
