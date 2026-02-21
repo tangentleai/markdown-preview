@@ -26,7 +26,7 @@
         "Run: - CLI: 运行 `npm run test`，验证核心测试全部通过",
         "Run: - GUI: 启动 Web 版本，执行 MCP runbook 验证编辑、预览、查找替换关键路径"
       ],
-      "passes": false
+      "passes": true
     },
     "R3": {
       "category": "functional",

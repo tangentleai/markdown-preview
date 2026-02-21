@@ -11,7 +11,7 @@ import {
   saveMarkdownAsViaPicker,
   saveMarkdownViaHandle,
   type MarkdownFileHandle
-} from './utils/markdownFileIO'
+} from './core/markdownFileService'
 
 type EditorMode = 'dual-pane' | 'wysiwyg'
 

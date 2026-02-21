@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { markdownToEditableHtml } from '../utils/markdownDocumentModel'
+import { markdownToEditableHtml } from '../core/markdownDocumentModel'
 import {
   BlockInputRuleUndoStack,
   canTriggerBlockInputRule,
@@ -15,7 +15,7 @@ import {
   resolveFindOptions,
   type FindMatchOptions,
   type TextMatchRange
-} from '../utils/findMatchEngine'
+} from '../core/findMatchEngine'
 import 'katex/dist/katex.min.css'
 import mermaid from 'mermaid'
 import { encode as encodePlantUml } from 'plantuml-encoder'

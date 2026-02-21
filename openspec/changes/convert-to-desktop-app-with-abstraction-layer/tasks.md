@@ -6,11 +6,12 @@
     - 运行单元测试验证 core 接口契约可被 mock 实现替换
   - EVIDENCE (RUN #1): supervisor executed validation bundle | VALIDATED: bash auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0001__task-1.1__ref-R1__20260221T164451Z/run.sh (exit 0) | RESULT: PASS | ARTIFACT: auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0001__task-1.1__ref-R1__20260221T164451Z/
 
-- [ ] 1.2 抽离并迁移共享逻辑到 core 层 [#R2]
+- [x] 1.2 抽离并迁移共享逻辑到 core 层 [#R2]
   - ACCEPT: 现有前端版核心逻辑通过 core 层调用，原功能行为不回退
   - TEST: SCOPE: MIXED
     - CLI: 运行 `npm run test`，验证核心测试全部通过
     - GUI: 启动 Web 版本，执行 MCP runbook 验证编辑、预览、查找替换关键路径
+  - EVIDENCE (RUN #3): supervisor executed mixed validation bundle | VALIDATED: bash auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/tests/test_cli_core_migration.sh (exit 0); MCP GUI runbook tests/gui_runbook_web_core_migration_unblock.md on http://localhost:33100 | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/outputs/gui-flow-a-edit-sync.png, auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/outputs/gui-flow-b-preview.png, auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/outputs/gui-flow-c-find-replace.png
 
 ## 2. 平台适配层与桌面壳
 - [ ] 2.1 实现 Web/Desktop 双平台 adapter [#R3]
