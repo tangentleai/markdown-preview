@@ -7,6 +7,14 @@ const defineSize = (target: object, key: 'clientWidth' | 'scrollWidth', value: n
   })
 }
 
+const defineScrollLeft = (target: object, value: number) => {
+  Object.defineProperty(target, 'scrollLeft', {
+    configurable: true,
+    writable: true,
+    value
+  })
+}
+
 describe('syncOverflowTableScrollviews', () => {
   it('wraps table in horizontal scroll container when table overflows editor width', () => {
     const editor = document.createElement('div')
@@ -67,5 +75,34 @@ describe('syncOverflowTableScrollviews', () => {
     syncOverflowTableScrollviews(editor)
 
     expect(editor.querySelectorAll('[data-table-scrollview="true"]').length).toBe(1)
+  })
+
+  it('adds icon hint and updates hint state while horizontal scrolling', () => {
+    const editor = document.createElement('div')
+    const table = document.createElement('table')
+    defineSize(editor, 'clientWidth', 320)
+    defineSize(table, 'scrollWidth', 860)
+    editor.append(table)
+
+    syncOverflowTableScrollviews(editor)
+
+    const wrapper = editor.querySelector('[data-table-scrollview="true"]') as HTMLElement
+    expect(wrapper).not.toBeNull()
+
+    defineSize(wrapper, 'clientWidth', 320)
+    defineSize(wrapper, 'scrollWidth', 860)
+    defineScrollLeft(wrapper, 0)
+
+    syncOverflowTableScrollviews(editor)
+    expect(wrapper.getAttribute('data-table-scroll-hint-state')).toBe('start')
+    expect(wrapper.querySelector('[data-table-scroll-hint="true"]')).not.toBeNull()
+
+    wrapper.scrollLeft = 240
+    wrapper.dispatchEvent(new Event('scroll'))
+    expect(wrapper.getAttribute('data-table-scroll-hint-state')).toBe('middle')
+
+    wrapper.scrollLeft = 540
+    wrapper.dispatchEvent(new Event('scroll'))
+    expect(wrapper.getAttribute('data-table-scroll-hint-state')).toBe('end')
   })
 })

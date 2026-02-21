@@ -75,7 +75,7 @@
         "Run: SCOPE: GUI",
         "Run: 验证提示在初始态、滚动中、滚动到底状态下显示符合预期。"
       ],
-      "passes": false
+      "passes": true
     },
     "R7": {
       "category": "functional",

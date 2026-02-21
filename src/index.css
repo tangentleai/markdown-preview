@@ -99,6 +99,7 @@ code {
 }
 
 .markdown-preview .wysiwyg-table-scrollview {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: visible;
@@ -107,6 +108,51 @@ code {
 .markdown-preview .wysiwyg-table-scrollview > table {
   width: max-content;
   min-width: 100%;
+}
+
+.markdown-preview .wysiwyg-table-scroll-hint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.markdown-preview .wysiwyg-table-scroll-hint::before,
+.markdown-preview .wysiwyg-table-scroll-hint::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background-color: rgba(15, 23, 42, 0.76);
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.32);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.18s ease;
+}
+
+.markdown-preview .wysiwyg-table-scroll-hint::before {
+  left: 10px;
+  clip-path: polygon(60% 28%, 64% 32%, 48% 50%, 64% 68%, 60% 72%, 40% 50%);
+}
+
+.markdown-preview .wysiwyg-table-scroll-hint::after {
+  right: 10px;
+  clip-path: polygon(40% 28%, 36% 32%, 52% 50%, 36% 68%, 40% 72%, 60% 50%);
+}
+
+.markdown-preview .wysiwyg-table-scrollview[data-table-scroll-hint-state='start']
+  .wysiwyg-table-scroll-hint::after,
+.markdown-preview .wysiwyg-table-scrollview[data-table-scroll-hint-state='middle']
+  .wysiwyg-table-scroll-hint::after {
+  opacity: 1;
+}
+
+.markdown-preview .wysiwyg-table-scrollview[data-table-scroll-hint-state='middle']
+  .wysiwyg-table-scroll-hint::before,
+.markdown-preview .wysiwyg-table-scrollview[data-table-scroll-hint-state='end']
+  .wysiwyg-table-scroll-hint::before {
+  opacity: 1;
 }
 
 .markdown-preview th,
