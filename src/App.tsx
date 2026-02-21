@@ -363,8 +363,8 @@ Alice -> Bob : 回复
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-white shadow-sm mb-0">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <header className="bg-[#F5F7FA] shadow-sm mb-0">
+        <div className="max-w-7xl px-4 py-4 sm:px-6 lg:px-4 flex flex-col gap-4 lg:flex-row lg:items-center">
           <h1 className="text-2xl font-bold text-gray-900">Markdown Preview</h1>
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="文件与编辑模式操作">
             <button
@@ -420,7 +420,7 @@ Alice -> Bob : 回复
             </button>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 pb-1 sm:px-6 lg:px-8 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+        <div className="max-w-7xl px-4 pb-0 sm:px-6 lg:px-4 flex flex-wrap items-center gap-2 text-sm text-gray-600">
           <span aria-label="当前文件">文件：{activeFileName}</span>
           <span className="text-gray-400">|</span>
           <span aria-label="保存状态">状态：{statusText}</span>
@@ -441,7 +441,7 @@ Alice -> Bob : 回复
             <MarkdownPreview markdown={markdown} />
           </div>
         ) : (
-          <div className="space-y-3">
+          <div>
             <div className="lg:hidden px-1">
               <button
                 type="button"
@@ -567,7 +567,7 @@ Alice -> Bob : 回复
                     isOutlineResizing ? 'bg-blue-500/50' : 'hover:bg-blue-100/50'
                   }`}
                 >
-                  <span className={`block w-[1px] h-full mx-auto transition-colors ${isOutlineResizing ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                  <span className={`block w-[1px] h-full transition-colors ${isOutlineResizing ? 'bg-blue-500' : 'bg-gray-200'}`} />
                 </button>
               </div>
               <div className="w-full" aria-label="编辑区右侧列容器">
