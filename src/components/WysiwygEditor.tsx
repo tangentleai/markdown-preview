@@ -36,13 +36,7 @@ import {
   shrinkWillTrimNonEmptyContent
 } from '../utils/wysiwygTableResize'
 import {
-  MANUAL_COLUMN_WIDTH_MIN,
-  TABLE_MANUAL_WIDTH_ATTR,
-  createManualColumnWidthState,
-  parseManualColumnWidths,
-  reduceManualColumnWidthState,
-  serializeManualColumnWidths,
-  type ManualColumnWidthState
+  TABLE_MANUAL_WIDTH_ATTR
 } from '../utils/wysiwygTableManualColumnWidths'
 import findPreviousIcon from '../assets/iconfont/find-previous.svg'
 import findNextIcon from '../assets/iconfont/find-next.svg'
@@ -54,7 +48,9 @@ import wholeWordIcon from '../assets/iconfont/whole-word.svg'
 import regexModeIcon from '../assets/iconfont/regex-mode.svg'
 import tableToolbarAnchorIcon from '../assets/iconfont/table-toolbar-anchor.svg'
 import tableToolbarAlignLeftIcon from '../assets/iconfont/table-toolbar-align-left.svg'
-import tableToolbarCloseIcon from '../assets/iconfont/table-toolbar-close.svg'
+import tableToolbarAlignCenterIcon from '../assets/iconfont/table-toolbar-align-center.svg'
+import tableToolbarAlignRightIcon from '../assets/iconfont/table-toolbar-align-right.svg'
+import tableToolbarDeleteIcon from '../assets/iconfont/table-toolbar-delete.svg'
 
 interface WysiwygEditorProps {
   markdown: string
@@ -198,6 +194,68 @@ const getExplicitTableAlignment = (table: HTMLTableElement): TableAlignment | nu
 
 const resolveTableAlignment = (table: HTMLTableElement): TableAlignment => getExplicitTableAlignment(table) ?? 'left'
 
+// 获取光标所在的列索引
+const getCursorColumnIndex = (table: HTMLTableElement, selection: Selection | null): number | null => {
+  if (!selection || selection.rangeCount === 0) {
+    return null
+  }
+  const range = selection.getRangeAt(0)
+  const cell = range.startContainer.nodeType === Node.ELEMENT_NODE 
+    ? (range.startContainer as HTMLElement).closest('td, th')
+    : (range.startContainer.parentElement?.closest('td, th') as HTMLElement | null)
+  
+  if (!cell || !table.contains(cell)) {
+    return null
+  }
+  
+  const row = cell.closest('tr')
+  if (!row) {
+    return null
+  }
+  
+  return Array.from(row.cells).indexOf(cell as HTMLTableCellElement)
+}
+
+// 应用列对齐（仅对指定列）
+const applyColumnAlignment = (table: HTMLTableElement, columnIndex: number, align: TableAlignment): void => {
+  const rows = Array.from(table.rows)
+  rows.forEach((row) => {
+    const cell = row.cells[columnIndex]
+    if (cell) {
+      cell.style.textAlign = align
+    }
+  })
+  
+  // 存储列对齐信息到表格属性
+  const columnAligns = getColumnAlignments(table)
+  columnAligns[columnIndex] = align
+  setColumnAlignments(table, columnAligns)
+}
+
+// 获取所有列的对齐方式
+const getColumnAlignments = (table: HTMLTableElement): TableAlignment[] => {
+  const attr = table.getAttribute('data-column-aligns')
+  if (!attr) {
+    return []
+  }
+  try {
+    return JSON.parse(attr) as TableAlignment[]
+  } catch {
+    return []
+  }
+}
+
+// 设置所有列的对齐方式
+const setColumnAlignments = (table: HTMLTableElement, aligns: TableAlignment[]): void => {
+  table.setAttribute('data-column-aligns', JSON.stringify(aligns))
+}
+
+// 获取指定列的对齐方式
+const getColumnAlignment = (table: HTMLTableElement, columnIndex: number): TableAlignment => {
+  const aligns = getColumnAlignments(table)
+  return aligns[columnIndex] || 'left'
+}
+
 const applyTableAlignmentMetadata = (table: HTMLTableElement, align: TableAlignment, explicit: boolean): void => {
   table.classList.remove('wysiwyg-table-align-left', 'wysiwyg-table-align-center', 'wysiwyg-table-align-right')
   if (!explicit) {
@@ -218,56 +276,7 @@ const parsePixels = (value: string | null | undefined): number => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-const resolveTableColumnWidth = (table: HTMLTableElement, columnIndex: number): number => {
-  const col = table.querySelector(`:scope > colgroup > col:nth-child(${columnIndex + 1})`) as HTMLTableColElement | null
-  if (col) {
-    const colWidth = parsePixels(col.style.width)
-    if (colWidth > 0) {
-      return colWidth
-    }
-    const rectWidth = col.getBoundingClientRect().width
-    if (rectWidth > 0) {
-      return rectWidth
-    }
-  }
-  const headerCell = table.tHead?.rows[0]?.cells[columnIndex] ?? table.rows[0]?.cells[columnIndex]
-  if (headerCell) {
-    const rect = headerCell.getBoundingClientRect()
-    if (rect.width > 0) {
-      return rect.width
-    }
-  }
-  return MANUAL_COLUMN_WIDTH_MIN
-}
-
-const ensureTableResizeHandles = (table: HTMLTableElement): void => {
-  const headerRow = table.tHead?.rows[0] ?? table.rows[0]
-  if (!headerRow) {
-    return
-  }
-  const headerCells = Array.from(headerRow.cells)
-  headerCells.forEach((cell, index) => {
-    let handle = cell.querySelector(
-      `:scope > [${TABLE_RESIZE_HANDLE_ATTR}="${index}"]`
-    ) as HTMLElement | null
-    if (!handle) {
-      handle = document.createElement('span')
-      handle.className = 'wysiwyg-table-col-resize-handle'
-      handle.setAttribute(TABLE_RESIZE_HANDLE_ATTR, String(index))
-      handle.setAttribute('aria-hidden', 'true')
-      handle.setAttribute('contenteditable', 'false')
-      cell.append(handle)
-    }
-  })
-
-  const handles = Array.from(table.querySelectorAll(`[${TABLE_RESIZE_HANDLE_ATTR}]`)) as HTMLElement[]
-  handles.forEach((handle) => {
-    const index = Number.parseInt(handle.getAttribute(TABLE_RESIZE_HANDLE_ATTR) ?? '', 10)
-    if (!Number.isFinite(index) || index >= headerCells.length) {
-      handle.remove()
-    }
-  })
-}
+// 列宽拖拽功能已禁用，相关函数已移除
 
 const tableElementToMarkdown = (table: HTMLTableElement): string => {
   const headerRow = table.tHead?.rows[0] ?? table.rows[0]
@@ -1108,7 +1117,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const monacoThemeReadyRef = useRef(false)
   const tableToolbarRef = useRef<HTMLDivElement>(null)
   const activeTableRef = useRef<HTMLTableElement | null>(null)
-  const tableResizeDragRef = useRef<{ table: HTMLTableElement; state: ManualColumnWidthState } | null>(null)
+  // 列宽拖拽功能已禁用
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
   const [isCaseSensitiveFind, setIsCaseSensitiveFind] = useState(false)
@@ -1127,6 +1136,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [tableAlignment, setTableAlignment] = useState<TableAlignment>('left')
   const [tablePreviewRows, setTablePreviewRows] = useState(1)
   const [tablePreviewCols, setTablePreviewCols] = useState(1)
+  const [isTableSizeEditing, setIsTableSizeEditing] = useState(false)
   const [tableToolbarStyle, setTableToolbarStyle] = useState<React.CSSProperties>({
     left: '-9999px',
     top: '-9999px',
@@ -1140,7 +1150,6 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       activeTableRef.current.removeAttribute(TABLE_RESIZE_DRAGGING_ATTR)
     }
     activeTableRef.current = null
-    tableResizeDragRef.current = null
     setShowTableToolbar(false)
     setShowTableSizeGrid(false)
     setTableAlignment('left')
@@ -1190,7 +1199,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const beforeMarkdown = htmlToMarkdown(editorRef.current)
       const beforeHtml = editorRef.current.innerHTML
       resizeTableTo(table, nextSize)
-      ensureTableResizeHandles(table)
+      // 列宽拖拽功能已禁用，不再调用ensureTableResizeHandles
       const afterMarkdown = htmlToMarkdown(editorRef.current)
       const afterHtml = editorRef.current.innerHTML
       structuralHistoryRef.current.push({
@@ -1219,22 +1228,37 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const applyTableAlignment = useCallback(
     (align: TableAlignment) => {
       const table = activeTableRef.current
-      if (!table || !editorRef.current) {
+      const editor = editorRef.current
+      if (!table || !editor) {
         return
       }
 
-      const currentExplicitAlign = getExplicitTableAlignment(table)
-      if (currentExplicitAlign === align) {
-        setTableAlignment(align)
+      // 获取光标所在的列索引
+      const selection = window.getSelection()
+      const columnIndex = getCursorColumnIndex(table, selection)
+      
+      if (columnIndex === null) {
+        // 如果没有在表格单元格内，不执行任何操作
         return
       }
 
-      const beforeMarkdown = htmlToMarkdown(editorRef.current)
-      const beforeHtml = editorRef.current.innerHTML
-      applyTableAlignmentMetadata(table, align, true)
+      // 检查当前列的对齐方式
+      const currentAlign = getColumnAlignment(table, columnIndex)
+      if (currentAlign === align) {
+        return
+      }
+
+      const beforeMarkdown = htmlToMarkdown(editor)
+      const beforeHtml = editor.innerHTML
+      
+      // 应用列对齐
+      applyColumnAlignment(table, columnIndex, align)
+      
+      // 更新状态以反映当前列的对齐方式
       setTableAlignment(align)
-      const afterMarkdown = htmlToMarkdown(editorRef.current)
-      const afterHtml = editorRef.current.innerHTML
+      
+      const afterMarkdown = htmlToMarkdown(editor)
+      const afterHtml = editor.innerHTML
 
       structuralHistoryRef.current.push({
         rule: 'code-block',
@@ -1249,8 +1273,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         createdAt: new Date().toISOString()
       })
 
-      syncTableColgroupWidths(editorRef.current)
-      syncOverflowTableScrollviews(editorRef.current)
+      syncTableColgroupWidths(editor)
+      syncOverflowTableScrollviews(editor)
       lastSyncedMarkdownRef.current = afterMarkdown
       if (afterMarkdown !== markdownRef.current) {
         setMarkdown(afterMarkdown)
@@ -1372,12 +1396,21 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         activeTableRef.current.removeAttribute(TABLE_RESIZE_ACTIVE_ATTR)
       }
       activeTableRef.current = table
+      // 列宽拖拽功能已禁用
       table.setAttribute(TABLE_RESIZE_ACTIVE_ATTR, 'true')
-      ensureTableResizeHandles(table)
       const size = getTableSize(table)
       setTablePreviewRows(size.rows)
       setTablePreviewCols(size.cols)
-      setTableAlignment(resolveTableAlignment(table))
+      
+      // 根据光标所在列的对齐方式设置按钮状态
+      const selection = window.getSelection()
+      const columnIndex = getCursorColumnIndex(table, selection)
+      if (columnIndex !== null) {
+        setTableAlignment(getColumnAlignment(table, columnIndex))
+      } else {
+        setTableAlignment('left')
+      }
+      
       setShowTableToolbar(true)
       window.requestAnimationFrame(() => {
         positionTableToolbar()
@@ -2012,88 +2045,10 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
   }, [closeTableToolbar, openTableToolbarForTable, positionTableToolbar, showTableToolbar])
 
+  // 列宽拖拽功能已禁用
   useEffect(() => {
-    const editor = editorRef.current
-    if (!editor) {
-      return
-    }
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const dragState = tableResizeDragRef.current
-      if (!dragState) {
-        return
-      }
-      dragState.state = reduceManualColumnWidthState(dragState.state, {
-        type: 'update',
-        clientX: event.clientX
-      })
-      dragState.table.setAttribute(TABLE_MANUAL_WIDTH_ATTR, serializeManualColumnWidths(dragState.state.widths))
-      syncTableColgroupWidths(editor)
-      syncOverflowTableScrollviews(editor)
-    }
-
-    const stopDrag = () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      const dragState = tableResizeDragRef.current
-      if (dragState) {
-        dragState.table.removeAttribute(TABLE_RESIZE_DRAGGING_ATTR)
-      }
-      tableResizeDragRef.current = null
-    }
-
-    const handlePointerUp = () => {
-      const dragState = tableResizeDragRef.current
-      if (dragState) {
-        dragState.state = reduceManualColumnWidthState(dragState.state, { type: 'end' })
-        dragState.table.setAttribute(TABLE_MANUAL_WIDTH_ATTR, serializeManualColumnWidths(dragState.state.widths))
-      }
-      stopDrag()
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null
-      const handle = target?.closest(`[${TABLE_RESIZE_HANDLE_ATTR}]`) as HTMLElement | null
-      if (!handle) {
-        return
-      }
-      const table = handle.closest('table') as HTMLTableElement | null
-      if (!table || !editor.contains(table)) {
-        return
-      }
-      const columnIndex = Number.parseInt(handle.getAttribute(TABLE_RESIZE_HANDLE_ATTR) ?? '', 10)
-      if (!Number.isFinite(columnIndex)) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      const manualWidths = parseManualColumnWidths(table.getAttribute(TABLE_MANUAL_WIDTH_ATTR))
-      let state = createManualColumnWidthState(manualWidths)
-      state = reduceManualColumnWidthState(state, {
-        type: 'start',
-        columnIndex,
-        clientX: event.clientX,
-        currentWidth: resolveTableColumnWidth(table, columnIndex)
-      })
-      tableResizeDragRef.current = { table, state }
-      table.setAttribute(TABLE_RESIZE_DRAGGING_ATTR, 'true')
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handlePointerUp)
-      window.addEventListener('pointercancel', handlePointerUp)
-    }
-
-    editor.addEventListener('pointerdown', handlePointerDown)
-    return () => {
-      editor.removeEventListener('pointerdown', handlePointerDown)
-      stopDrag()
-    }
+    // 保留空useEffect以避免破坏依赖结构
+    return () => {}
   }, [])
 
   const handleInput = () => {
@@ -3698,6 +3653,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                   min={1}
                   max={TABLE_MAX_ROWS}
                   value={tablePreviewRows}
+                  onFocus={() => setIsTableSizeEditing(true)}
+                  onBlur={() => setIsTableSizeEditing(false)}
                   onChange={(event) => {
                     const next = normalizeTargetTableSize(Number.parseInt(event.target.value, 10), tablePreviewCols)
                     setTablePreviewRows(next.rows)
@@ -3711,6 +3668,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                   min={1}
                   max={TABLE_MAX_COLS}
                   value={tablePreviewCols}
+                  onFocus={() => setIsTableSizeEditing(true)}
+                  onBlur={() => setIsTableSizeEditing(false)}
                   onChange={(event) => {
                     const next = normalizeTargetTableSize(tablePreviewRows, Number.parseInt(event.target.value, 10))
                     setTablePreviewCols(next.cols)
@@ -3718,29 +3677,33 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                 />
               </label>
             </div>
-            <div className="wysiwyg-table-size-grid-footer">
-              <span className="wysiwyg-table-size-grid-limit">上限 {TABLE_MAX_ROWS} x {TABLE_MAX_COLS}</span>
-              <div className="wysiwyg-table-size-grid-actions">
-                <button
-                  type="button"
-                  className="wysiwyg-table-size-grid-action"
-                  onClick={() => {
-                    setShowTableSizeGrid(false)
-                  }}
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  className="wysiwyg-table-size-grid-action is-primary"
-                  onClick={() => {
-                    applyTableResize(tablePreviewRows, tablePreviewCols)
-                  }}
-                >
-                  应用
-                </button>
+            {isTableSizeEditing && (
+              <div className="wysiwyg-table-size-grid-footer">
+                <span className="wysiwyg-table-size-grid-limit">上限 {TABLE_MAX_ROWS} x {TABLE_MAX_COLS}</span>
+                <div className="wysiwyg-table-size-grid-actions">
+                  <button
+                    type="button"
+                    className="wysiwyg-table-size-grid-action"
+                    onClick={() => {
+                      setIsTableSizeEditing(false)
+                      syncPreviewSizeFromActiveTable()
+                    }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="wysiwyg-table-size-grid-action is-primary"
+                    onClick={() => {
+                      applyTableResize(tablePreviewRows, tablePreviewCols)
+                      setIsTableSizeEditing(false)
+                    }}
+                  >
+                    应用
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : null}
         <button
@@ -3763,7 +3726,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             applyTableAlignment('center')
           }}
         >
-          C
+          <img src={tableToolbarAlignCenterIcon} alt="" aria-hidden="true" className="h-4 w-4" />
         </button>
         <button
           type="button"
@@ -3774,7 +3737,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             applyTableAlignment('right')
           }}
         >
-          R
+          <img src={tableToolbarAlignRightIcon} alt="" aria-hidden="true" className="h-4 w-4" />
         </button>
         <button
           type="button"
@@ -3782,15 +3745,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           aria-label="删除表格"
           onClick={deleteActiveTable}
         >
-          删除
-        </button>
-        <button
-          type="button"
-          className="wysiwyg-table-toolbar-btn"
-          aria-label="关闭表格工具栏"
-          onClick={closeTableToolbar}
-        >
-          <img src={tableToolbarCloseIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+          <img src={tableToolbarDeleteIcon} alt="" aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
       <div
