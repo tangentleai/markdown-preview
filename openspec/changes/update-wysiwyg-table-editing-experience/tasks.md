@@ -27,10 +27,12 @@
 
 ## 2. 表格列宽计算与渲染
 
-- [ ] 2.1 实现列宽测量模型与分配算法（min/preferred/max） [#R4]
+- [x] 2.1 实现列宽测量模型与分配算法（min/preferred/max） [#R4]
   - ACCEPT: 基于内容计算每列 min/preferred/max 宽度，按容器预算执行增长/收缩分配，结果稳定且可复现。
   - TEST: SCOPE: CLI
     - 运行纯函数单元测试，覆盖长词/长链接/数字列/极端预算边界与收敛行为。
+  - BUNDLE (RUN #4): Implemented column width measurement + allocation model with CLI tests for long-word/link/numeric and budget edge convergence | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0004__task-2.1__ref-R4__20260222T024931Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #5): Supervisor executed CLI validation and confirmed min/preferred/max metrics plus budget growth/shrink convergence across edge cases | VALIDATED: npm test -- --runInBand src/__tests__/wysiwygTableColumnWidths.test.ts (exit=0; 7 tests passed) | RESULT: PASS | TIME: 2026-02-22T02:53:30Z
 
 - [ ] 2.2 接入 `<colgroup>` 写入与重算时机，并保持与溢出滚动兜底协同 [#R5]
   - ACCEPT: 在 WYSIWYG 渲染与尺寸变化后自动更新 `<colgroup>`；当压缩至最小仍超宽时继续使用既有横向滚动容器与提示。

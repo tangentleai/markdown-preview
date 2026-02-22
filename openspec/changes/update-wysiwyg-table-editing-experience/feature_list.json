@@ -1,6 +1,6 @@
 {
   "change_id": "update-wysiwyg-table-editing-experience",
-  "generated_at": "2026-02-22T02:31:30Z",
+  "generated_at": "2026-02-22T02:53:30Z",
   "features": {
     "R1": {
       "category": "functional",
@@ -50,7 +50,7 @@
         "Run: SCOPE: CLI",
         "Run: - 运行纯函数单元测试，覆盖长词/长链接/数字列/极端预算边界与收敛行为。"
       ],
-      "passes": false
+      "passes": true
     },
     "R5": {
       "category": "functional",
