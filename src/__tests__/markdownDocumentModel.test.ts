@@ -56,6 +56,50 @@ const value = 1
     expect(serializeDocumentModelToMarkdown(model)).toContain('\n\n---\n\n')
   })
 
+  it('should parse table alignment marker and hide marker text in editable html', () => {
+    const markdown = '<!-- table:align=center -->\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+
+    const model = parseMarkdownToDocumentModel(markdown)
+    const tableBlock = model.blocks.find((block) => block.type === 'table')
+
+    expect(tableBlock).toEqual({
+      type: 'table',
+      header: [[{ type: 'text', value: 'A' }], [{ type: 'text', value: 'B' }]],
+      rows: [[[{ type: 'text', value: '1' }], [{ type: 'text', value: '2' }]],
+      ],
+      align: 'center',
+      alignExplicit: true
+    })
+
+    const html = markdownToEditableHtml(markdown)
+    expect(html).toContain('data-table-align="center"')
+    expect(html).toContain('data-table-align-explicit="true"')
+    expect(html).not.toContain('table:align=center')
+  })
+
+  it('should serialize explicit table alignment marker and preserve round-trip', () => {
+    const markdown = '<!-- table:align=right -->\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+    const parsed = parseMarkdownToDocumentModel(markdown)
+    const serialized = serializeDocumentModelToMarkdown(parsed)
+
+    expect(serialized).toContain('<!-- table:align=right -->')
+    expect(serialized).toContain('| A | B |')
+    expect(parseMarkdownToDocumentModel(serialized)).toEqual(parsed)
+  })
+
+  it('should remove alignment marker together when table block is deleted from model', () => {
+    const markdown = '<!-- table:align=left -->\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n尾部段落\n'
+    const parsed = parseMarkdownToDocumentModel(markdown)
+    const withoutTable = {
+      blocks: parsed.blocks.filter((block) => block.type !== 'table')
+    }
+
+    const serialized = serializeDocumentModelToMarkdown(withoutTable)
+    expect(serialized).not.toContain('table:align=')
+    expect(serialized).toContain('尾部段落')
+    expect(serialized).not.toContain('| A | B |')
+  })
+
   it('should render benchmark block LaTeX formula with \\[...\\] delimiters', () => {
     const markdown = '\\[\n\\text{MOM}_{i,t} = \\frac{P_{i,t-1}}{P_{i,t-1-N}} - 1\n\\]'
 

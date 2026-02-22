@@ -98,6 +98,21 @@ code {
   @apply w-full border-collapse border border-gray-300;
 }
 
+.markdown-preview table[data-table-align='left'] {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.markdown-preview table[data-table-align='center'] {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.markdown-preview table[data-table-align='right'] {
+  margin-left: auto;
+  margin-right: 0;
+}
+
 .markdown-preview .wysiwyg-table-scrollview {
   position: relative;
   max-width: 100%;
@@ -255,6 +270,12 @@ code {
 .wysiwyg-table-toolbar-btn:hover {
   background: #f8fafc;
   border-color: rgba(71, 85, 105, 0.55);
+}
+
+.wysiwyg-table-toolbar-btn.is-active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
 }
 
 .wysiwyg-table-size-grid-panel {

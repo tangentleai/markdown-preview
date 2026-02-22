@@ -51,10 +51,12 @@ interface WysiwygEditorProps {
   setMarkdown: (value: string) => void
   jumpToHeadingIndex?: number
   jumpRequestNonce?: number
+  structuralHistoryRef?: React.MutableRefObject<BlockInputRuleUndoStack>
 }
 
 type IconButtonInteractionState = 'default' | 'hover' | 'active'
 type TableToolbarPlacement = 'top' | 'bottom'
+type TableAlignment = 'left' | 'center' | 'right'
 
 const TABLE_GRID_PREVIEW_MAX = 10
 
@@ -170,6 +172,31 @@ const normalizeTableCellMarkdownText = (value: string): string =>
 const getMarkdownTableCellText = (cell: HTMLTableCellElement): string =>
   normalizeTableCellMarkdownText(Array.from(cell.childNodes).map(nodeToMarkdown).join(''))
 
+const getExplicitTableAlignment = (table: HTMLTableElement): TableAlignment | null => {
+  if (table.getAttribute('data-table-align-explicit') !== 'true') {
+    return null
+  }
+  const align = table.getAttribute('data-table-align')
+  if (align === 'left' || align === 'center' || align === 'right') {
+    return align
+  }
+  return null
+}
+
+const resolveTableAlignment = (table: HTMLTableElement): TableAlignment => getExplicitTableAlignment(table) ?? 'left'
+
+const applyTableAlignmentMetadata = (table: HTMLTableElement, align: TableAlignment, explicit: boolean): void => {
+  table.classList.remove('wysiwyg-table-align-left', 'wysiwyg-table-align-center', 'wysiwyg-table-align-right')
+  if (!explicit) {
+    table.removeAttribute('data-table-align')
+    table.removeAttribute('data-table-align-explicit')
+    return
+  }
+  table.setAttribute('data-table-align', align)
+  table.setAttribute('data-table-align-explicit', 'true')
+  table.classList.add(`wysiwyg-table-align-${align}`)
+}
+
 const tableElementToMarkdown = (table: HTMLTableElement): string => {
   const headerRow = table.tHead?.rows[0] ?? table.rows[0]
   const headerCells = headerRow ? Array.from(headerRow.cells) : []
@@ -189,7 +216,12 @@ const tableElementToMarkdown = (table: HTMLTableElement): string => {
   const separatorMarkdown = `| ${Array(columnCount).fill('---').join(' | ')} |`
   const bodyMarkdown = bodyRows.map((row) => toRowMarkdown(row.cells))
 
-  return [headerMarkdown, separatorMarkdown, ...bodyMarkdown].join('\n')
+  const tableMarkdown = [headerMarkdown, separatorMarkdown, ...bodyMarkdown].join('\n')
+  const explicitAlign = getExplicitTableAlignment(table)
+  if (explicitAlign) {
+    return `<!-- table:align=${explicitAlign} -->\n${tableMarkdown}`
+  }
+  return tableMarkdown
 }
 
 const nodeToMarkdown = (node: ChildNode): string => {
@@ -370,6 +402,19 @@ const setCaretToStart = (target: HTMLElement): void => {
   }
 
   range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+const setCaretToEnd = (target: HTMLElement): void => {
+  const selection = window.getSelection()
+  if (!selection) {
+    return
+  }
+
+  const range = document.createRange()
+  range.selectNodeContents(target)
+  range.collapse(false)
   selection.removeAllRanges()
   selection.addRange(range)
 }
@@ -962,11 +1007,13 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   markdown,
   setMarkdown,
   jumpToHeadingIndex,
-  jumpRequestNonce
+  jumpRequestNonce,
+  structuralHistoryRef: externalStructuralHistoryRef
 }) => {
   const editorRef = useRef<HTMLDivElement>(null)
   const lastSyncedMarkdownRef = useRef<string>('')
-  const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
+  const localStructuralHistoryRef = useRef(new BlockInputRuleUndoStack())
+  const structuralHistoryRef = externalStructuralHistoryRef ?? localStructuralHistoryRef
   const isImeComposingRef = useRef(false)
   const findInputRef = useRef<HTMLInputElement>(null)
   const markdownRef = useRef(markdown)
@@ -1004,6 +1051,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [showTableToolbar, setShowTableToolbar] = useState(false)
   const [tableToolbarPlacement, setTableToolbarPlacement] = useState<TableToolbarPlacement>('top')
   const [showTableSizeGrid, setShowTableSizeGrid] = useState(false)
+  const [tableAlignment, setTableAlignment] = useState<TableAlignment>('left')
   const [tablePreviewRows, setTablePreviewRows] = useState(1)
   const [tablePreviewCols, setTablePreviewCols] = useState(1)
   const [tableToolbarStyle, setTableToolbarStyle] = useState<React.CSSProperties>({
@@ -1017,6 +1065,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     activeTableRef.current = null
     setShowTableToolbar(false)
     setShowTableSizeGrid(false)
+    setTableAlignment('left')
     setTableToolbarStyle({
       left: '-9999px',
       top: '-9999px',
@@ -1087,6 +1136,117 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     [setMarkdown]
   )
 
+  const applyTableAlignment = useCallback(
+    (align: TableAlignment) => {
+      const table = activeTableRef.current
+      if (!table || !editorRef.current) {
+        return
+      }
+
+      const currentExplicitAlign = getExplicitTableAlignment(table)
+      if (currentExplicitAlign === align) {
+        setTableAlignment(align)
+        return
+      }
+
+      const beforeMarkdown = htmlToMarkdown(editorRef.current)
+      const beforeHtml = editorRef.current.innerHTML
+      applyTableAlignmentMetadata(table, align, true)
+      setTableAlignment(align)
+      const afterMarkdown = htmlToMarkdown(editorRef.current)
+      const afterHtml = editorRef.current.innerHTML
+
+      structuralHistoryRef.current.push({
+        rule: 'code-block',
+        triggerText: '',
+        triggerKey: 'Enter',
+        beforeMarkdown,
+        afterMarkdown,
+        beforeHtml,
+        afterHtml,
+        beforeCursorOffset: 0,
+        afterCursorOffset: 0,
+        createdAt: new Date().toISOString()
+      })
+
+      syncOverflowTableScrollviews(editorRef.current)
+      lastSyncedMarkdownRef.current = afterMarkdown
+      if (afterMarkdown !== markdownRef.current) {
+        setMarkdown(afterMarkdown)
+      }
+    },
+    [setMarkdown]
+  )
+
+  const deleteActiveTable = useCallback(() => {
+    const table = activeTableRef.current
+    const editor = editorRef.current
+    if (!table || !editor) {
+      return
+    }
+
+    const tableSize = getTableSize(table)
+    const hasContent =
+      Array.from(table.rows).some((row) =>
+        Array.from(row.cells).some((cell) => normalizeTableCellMarkdownText(cell.textContent ?? '').length > 0)
+      ) ||
+      tableSize.rows > 1 ||
+      tableSize.cols > 1
+
+    if (hasContent) {
+      const confirmed = window.confirm('删除表格将移除其内容，可撤销；是否继续？')
+      if (!confirmed) {
+        return
+      }
+    }
+
+    const beforeMarkdown = lastSyncedMarkdownRef.current || htmlToMarkdown(editor)
+    const beforeHtml = editor.innerHTML
+
+    const removableBlock =
+      (table.closest('[data-table-scrollview="true"]') as HTMLElement | null) ??
+      (table.closest('table') as HTMLElement | null)
+    if (!removableBlock || !editor.contains(removableBlock)) {
+      return
+    }
+
+    const previousBlock = removableBlock.previousElementSibling as HTMLElement | null
+    removableBlock.remove()
+
+    let focusTarget = previousBlock
+    if (!focusTarget) {
+      const paragraph = document.createElement('p')
+      paragraph.append(document.createElement('br'))
+      editor.prepend(paragraph)
+      focusTarget = paragraph
+    }
+
+    setCaretToEnd(focusTarget)
+    editor.focus({ preventScroll: true })
+
+    const afterMarkdown = htmlToMarkdown(editor)
+    const afterHtml = editor.innerHTML
+    structuralHistoryRef.current.push({
+      rule: 'code-block',
+      triggerText: '',
+      triggerKey: 'Backspace',
+      beforeMarkdown,
+      afterMarkdown,
+      beforeHtml,
+      afterHtml,
+      beforeCursorOffset: 0,
+      afterCursorOffset: 0,
+      createdAt: new Date().toISOString()
+    })
+
+    syncOverflowTableScrollviews(editor)
+    closeTableToolbar()
+    lastSyncedMarkdownRef.current = afterMarkdown
+    if (afterMarkdown !== markdownRef.current) {
+      setMarkdown(afterMarkdown)
+    }
+  }, [closeTableToolbar, setMarkdown])
+
   const positionTableToolbar = useCallback(() => {
     if (!showTableToolbar || !activeTableRef.current || !tableToolbarRef.current) {
       return
@@ -1131,6 +1291,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const size = getTableSize(table)
       setTablePreviewRows(size.rows)
       setTablePreviewCols(size.cols)
+      setTableAlignment(resolveTableAlignment(table))
       setShowTableToolbar(true)
       window.requestAnimationFrame(() => {
         positionTableToolbar()
@@ -3410,8 +3571,46 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             </div>
           </div>
         ) : null}
-        <button type="button" className="wysiwyg-table-toolbar-btn" aria-label="表格左对齐">
+        <button
+          type="button"
+          className={`wysiwyg-table-toolbar-btn ${tableAlignment === 'left' ? 'is-active' : ''}`}
+          aria-label="表格左对齐"
+          aria-pressed={tableAlignment === 'left'}
+          onClick={() => {
+            applyTableAlignment('left')
+          }}
+        >
           <img src={tableToolbarAlignLeftIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className={`wysiwyg-table-toolbar-btn ${tableAlignment === 'center' ? 'is-active' : ''}`}
+          aria-label="表格居中对齐"
+          aria-pressed={tableAlignment === 'center'}
+          onClick={() => {
+            applyTableAlignment('center')
+          }}
+        >
+          C
+        </button>
+        <button
+          type="button"
+          className={`wysiwyg-table-toolbar-btn ${tableAlignment === 'right' ? 'is-active' : ''}`}
+          aria-label="表格右对齐"
+          aria-pressed={tableAlignment === 'right'}
+          onClick={() => {
+            applyTableAlignment('right')
+          }}
+        >
+          R
+        </button>
+        <button
+          type="button"
+          className="wysiwyg-table-toolbar-btn"
+          aria-label="删除表格"
+          onClick={deleteActiveTable}
+        >
+          删除
         </button>
         <button
           type="button"

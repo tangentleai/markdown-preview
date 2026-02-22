@@ -1,6 +1,6 @@
 {
   "change_id": "update-wysiwyg-table-editing-experience",
-  "generated_at": "2026-02-21T16:31:54Z",
+  "generated_at": "2026-02-22T02:31:30Z",
   "features": {
     "R1": {
       "category": "functional",
@@ -38,7 +38,7 @@
         "Run: - CLI: 覆盖对齐标记解析/序列化与删除联动单元测试。",
         "Run: - GUI: 使用 GUI MCP runbook 验证按钮状态、删除确认、焦点恢复与回退行为。"
       ],
-      "passes": false
+      "passes": true
     },
     "R4": {
       "category": "functional",

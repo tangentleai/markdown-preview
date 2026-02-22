@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MarkdownInput from './components/MarkdownInput'
 import MarkdownPreview from './components/MarkdownPreview'
 import WysiwygEditor from './components/WysiwygEditor'
+import { BlockInputRuleUndoStack } from './utils/wysiwygBlockInputRules'
 import {
   isMarkdownFileName,
   type OpenFilePickerApi,
@@ -151,6 +152,7 @@ Alice -> Bob : 回复
   const [isOutlineDrawerOpen, setIsOutlineDrawerOpen] = useState<boolean>(false)
   const openFileInputRef = useRef<HTMLInputElement>(null)
   const outlineResizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
 
   const updateMarkdown = useCallback((nextMarkdown: string) => {
     setMarkdown((currentMarkdown) => {
@@ -577,6 +579,7 @@ Alice -> Bob : 回复
                     setMarkdown={updateMarkdown}
                     jumpToHeadingIndex={jumpToHeadingIndex}
                     jumpRequestNonce={jumpRequestNonce}
+                    structuralHistoryRef={structuralHistoryRef}
                   />
                 </div>
               </div>
