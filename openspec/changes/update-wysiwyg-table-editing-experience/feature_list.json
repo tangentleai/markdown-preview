@@ -1,6 +1,6 @@
 {
   "change_id": "update-wysiwyg-table-editing-experience",
-  "generated_at": "2026-02-22T02:53:30Z",
+  "generated_at": "2026-02-22T03:47:30Z",
   "features": {
     "R1": {
       "category": "functional",
@@ -63,7 +63,7 @@
         "Run: - CLI: 运行 DOM 集成测试，断言 `<colgroup>` 结构、列宽总和与预算关系。",
         "Run: - GUI: 使用 GUI MCP runbook 验证宽表在小屏下断行与横向滚动兜底共存。"
       ],
-      "passes": false
+      "passes": true
     },
     "R6": {
       "category": "functional",
@@ -76,7 +76,7 @@
         "Run: - CLI: 运行样式与类名回归测试，断言关键样式规则存在。",
         "Run: - GUI: 使用 GUI MCP runbook 在中英文、URL、代码混排场景验证可读性与稳定性。"
       ],
-      "passes": false
+      "passes": true
     },
     "R7": {
       "category": "functional",

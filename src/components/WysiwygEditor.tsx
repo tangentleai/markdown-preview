@@ -25,6 +25,7 @@ import {
   renderBlockMathWithFallback,
   renderInlineMathWithFallback
 } from '../utils/mathRendering'
+import { syncTableColgroupWidths } from '../utils/wysiwygTableColgroup'
 import { syncOverflowTableScrollviews } from '../utils/wysiwygTableOverflow'
 import {
   TABLE_MAX_COLS,
@@ -1127,6 +1128,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         createdAt: new Date().toISOString()
       })
 
+      syncTableColgroupWidths(editorRef.current)
       syncOverflowTableScrollviews(editorRef.current)
       lastSyncedMarkdownRef.current = afterMarkdown
       if (afterMarkdown !== markdownRef.current) {
@@ -1169,6 +1171,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         createdAt: new Date().toISOString()
       })
 
+      syncTableColgroupWidths(editorRef.current)
       syncOverflowTableScrollviews(editorRef.current)
       lastSyncedMarkdownRef.current = afterMarkdown
       if (afterMarkdown !== markdownRef.current) {
@@ -1676,6 +1679,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       lastSyncedMarkdownRef.current = markdown
     }
     void mountMonacoEditors()
+    syncTableColgroupWidths(editorRef.current)
     syncOverflowTableScrollviews(editorRef.current)
   }, [markdown])
 
@@ -1685,6 +1689,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
     const editor = editorRef.current
     const syncTables = () => {
+      syncTableColgroupWidths(editor)
       syncOverflowTableScrollviews(editor)
     }
     syncTables()

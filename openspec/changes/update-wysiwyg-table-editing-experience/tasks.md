@@ -34,17 +34,23 @@
   - BUNDLE (RUN #4): Implemented column width measurement + allocation model with CLI tests for long-word/link/numeric and budget edge convergence | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0004__task-2.1__ref-R4__20260222T024931Z | HOW_TO_RUN: run.sh/run.bat
   - EVIDENCE (RUN #5): Supervisor executed CLI validation and confirmed min/preferred/max metrics plus budget growth/shrink convergence across edge cases | VALIDATED: npm test -- --runInBand src/__tests__/wysiwygTableColumnWidths.test.ts (exit=0; 7 tests passed) | RESULT: PASS | TIME: 2026-02-22T02:53:30Z
 
-- [ ] 2.2 接入 `<colgroup>` 写入与重算时机，并保持与溢出滚动兜底协同 [#R5]
+- [x] 2.2 接入 `<colgroup>` 写入与重算时机，并保持与溢出滚动兜底协同 [#R5]
   - ACCEPT: 在 WYSIWYG 渲染与尺寸变化后自动更新 `<colgroup>`；当压缩至最小仍超宽时继续使用既有横向滚动容器与提示。
   - TEST: SCOPE: MIXED
     - CLI: 运行 DOM 集成测试，断言 `<colgroup>` 结构、列宽总和与预算关系。
     - GUI: 使用 GUI MCP runbook 验证宽表在小屏下断行与横向滚动兜底共存。
+  - BUNDLE (RUN #5): Implemented colgroup sync + resize observer hooks with DOM tests and GUI runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0005__task-2.2__ref-R5__20260222T031215Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #6): Supervisor executed MIXED validation and confirmed colgroup exists with width styles, updates after resize, and overflow scroll hint remains on narrow viewports | VALIDATED: bash auto_test_openspec/update-wysiwyg-table-editing-experience/run-0005__task-2.2__ref-R5__20260222T031215Z/tests/test_cli_table_colgroup_r5.sh (exit=0; 2 tests passed) + GUI MCP assertions (colgroup present; col count=header count; narrow viewport keeps scrollview+hint; col widths still present) | RESULT: PASS | TIME: 2026-02-22T03:28:30Z | GUI_EVIDENCE: Downloads/R5-colgroup-desktop-2026-02-22T03-28-02-707Z.png, Downloads/R5-colgroup-narrow-scroll-2026-02-22T03-28-22-329Z.png
+  - BUNDLE (RUN #6): Implemented colgroup sync on render/resize with overflow scroll fallback coordination; added DOM integration test + GUI MCP runbook bundle | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0005__task-2.2__ref-R5__20260222T031215Z | HOW_TO_RUN: run.sh/run.bat
 
-- [ ] 2.3 增强单元格断行策略与长内容可读性 [#R6]
+- [x] 2.3 增强单元格断行策略与长内容可读性 [#R6]
   - ACCEPT: 单元格默认支持 `overflow-wrap:anywhere` 与合理 `word-break`；长链接/代码不再轻易撑爆列，内容可读。
   - TEST: SCOPE: MIXED
     - CLI: 运行样式与类名回归测试，断言关键样式规则存在。
     - GUI: 使用 GUI MCP runbook 在中英文、URL、代码混排场景验证可读性与稳定性。
+  - BUNDLE (RUN #7): Added table cell wrap styles plus CLI regression test and GUI runbook | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0007__task-2.3__ref-R6__20260222T033038Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #7): Supervisor executed MIXED validation and confirmed table cells wrap long URL/code with overflow-wrap:anywhere and word-break:break-word | VALIDATED: bash auto_test_openspec/update-wysiwyg-table-editing-experience/run-0007__task-2.3__ref-R6__20260222T033038Z/tests/test_cli_table_cell_wrap_r6.sh (exit=0; 1 test passed) + GUI MCP assertions (computed styles overflow-wrap:anywhere and word-break:break-word; long URL/code wrapped without forcing column overflow) | RESULT: PASS | TIME: 2026-02-22T03:47:30Z | GUI_EVIDENCE: Downloads/R6-url-wrap-2026-02-22T03-47-11-934Z.png, Downloads/R6-code-wrap-2026-02-22T03-47-21-526Z.png
+  - BUNDLE (RUN #7): Implemented R6 table cell wrapping defaults with CLI style/class regression test + GUI runbook bundle | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0007__task-2.3__ref-R6__20260222T033038Z | HOW_TO_RUN: run.sh/run.bat
 
 - [ ] 2.4 实现列拖拽改宽与自动列宽协同策略 [#R7]
   - ACCEPT: 列分隔手柄可拖拽改宽，宽度实时更新并受 `48px-720px` 约束；手动改宽仅在当前会话生效，刷新或重载后回到自动列宽策略。

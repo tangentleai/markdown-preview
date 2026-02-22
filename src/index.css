@@ -173,6 +173,8 @@ code {
 .markdown-preview th,
 .markdown-preview td {
   @apply border border-gray-300 px-4 py-2 text-left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-preview th {
