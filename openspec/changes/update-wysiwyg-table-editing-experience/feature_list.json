@@ -1,6 +1,6 @@
 {
   "change_id": "update-wysiwyg-table-editing-experience",
-  "generated_at": "2026-02-22T03:47:30Z",
+  "generated_at": "2026-02-22T09:47:30Z",
   "features": {
     "R1": {
       "category": "functional",
@@ -89,7 +89,7 @@
         "Run: - CLI: 覆盖手动列宽状态机与 min/max 钳制逻辑单元测试。",
         "Run: - GUI: 使用 GUI MCP runbook 验证拖拽交互、边界钳制、与自动列宽协同行为及重载后非持久化表现。"
       ],
-      "passes": false
+      "passes": true
     }
   }
 }

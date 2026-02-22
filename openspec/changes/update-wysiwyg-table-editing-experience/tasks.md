@@ -52,8 +52,10 @@
   - EVIDENCE (RUN #7): Supervisor executed MIXED validation and confirmed table cells wrap long URL/code with overflow-wrap:anywhere and word-break:break-word | VALIDATED: bash auto_test_openspec/update-wysiwyg-table-editing-experience/run-0007__task-2.3__ref-R6__20260222T033038Z/tests/test_cli_table_cell_wrap_r6.sh (exit=0; 1 test passed) + GUI MCP assertions (computed styles overflow-wrap:anywhere and word-break:break-word; long URL/code wrapped without forcing column overflow) | RESULT: PASS | TIME: 2026-02-22T03:47:30Z | GUI_EVIDENCE: Downloads/R6-url-wrap-2026-02-22T03-47-11-934Z.png, Downloads/R6-code-wrap-2026-02-22T03-47-21-526Z.png
   - BUNDLE (RUN #7): Implemented R6 table cell wrapping defaults with CLI style/class regression test + GUI runbook bundle | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0007__task-2.3__ref-R6__20260222T033038Z | HOW_TO_RUN: run.sh/run.bat
 
-- [ ] 2.4 实现列拖拽改宽与自动列宽协同策略 [#R7]
+- [x] 2.4 实现列拖拽改宽与自动列宽协同策略 [#R7]
   - ACCEPT: 列分隔手柄可拖拽改宽，宽度实时更新并受 `48px-720px` 约束；手动改宽仅在当前会话生效，刷新或重载后回到自动列宽策略。
   - TEST: SCOPE: MIXED
     - CLI: 覆盖手动列宽状态机与 min/max 钳制逻辑单元测试。
     - GUI: 使用 GUI MCP runbook 验证拖拽交互、边界钳制、与自动列宽协同行为及重载后非持久化表现。
+  - BUNDLE (RUN #8): Implemented R7 table column drag resize with manual width state tests and GUI MCP runbook bundle | VALIDATION_BUNDLE: auto_test_openspec/update-wysiwyg-table-editing-experience/run-0008__task-2.4__ref-R7__20260222T093828Z | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #8): Supervisor executed MIXED validation and confirmed drag handles, min/max clamp, auto column reflow, and reload clears manual widths | VALIDATED: bash auto_test_openspec/update-wysiwyg-table-editing-experience/run-0008__task-2.4__ref-R7__20260222T093828Z/tests/test_cli_table_manual_widths_r7.sh (exit=0; 4 tests passed) + GUI MCP assertions (resize handles visible; colgroup width clamped to 720px and 48px; other cols reflow; reload clears data-table-manual-widths) | RESULT: PASS | TIME: 2026-02-22T09:47:30Z | GUI_EVIDENCE: Downloads/R7-resize-handles-2026-02-22T09-45-18-382Z.png, Downloads/R7-colgroup-clamped-max-2026-02-22T09-45-45-421Z.png, Downloads/R7-reload-auto-widths-2026-02-22T09-47-16-811Z.png

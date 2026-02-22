@@ -35,6 +35,15 @@ import {
   resizeTableTo,
   shrinkWillTrimNonEmptyContent
 } from '../utils/wysiwygTableResize'
+import {
+  MANUAL_COLUMN_WIDTH_MIN,
+  TABLE_MANUAL_WIDTH_ATTR,
+  createManualColumnWidthState,
+  parseManualColumnWidths,
+  reduceManualColumnWidthState,
+  serializeManualColumnWidths,
+  type ManualColumnWidthState
+} from '../utils/wysiwygTableManualColumnWidths'
 import findPreviousIcon from '../assets/iconfont/find-previous.svg'
 import findNextIcon from '../assets/iconfont/find-next.svg'
 import replaceCurrentIcon from '../assets/iconfont/replace-current.svg'
@@ -60,6 +69,9 @@ type TableToolbarPlacement = 'top' | 'bottom'
 type TableAlignment = 'left' | 'center' | 'right'
 
 const TABLE_GRID_PREVIEW_MAX = 10
+const TABLE_RESIZE_HANDLE_ATTR = 'data-table-resize-handle'
+const TABLE_RESIZE_ACTIVE_ATTR = 'data-table-resize-active'
+const TABLE_RESIZE_DRAGGING_ATTR = 'data-table-resize-dragging'
 
 const ICON_BUTTON_TOOLTIPS: Record<string, string> = {
   close: '关闭查找替换工具栏',
@@ -196,6 +208,65 @@ const applyTableAlignmentMetadata = (table: HTMLTableElement, align: TableAlignm
   table.setAttribute('data-table-align', align)
   table.setAttribute('data-table-align-explicit', 'true')
   table.classList.add(`wysiwyg-table-align-${align}`)
+}
+
+const parsePixels = (value: string | null | undefined): number => {
+  if (!value) {
+    return 0
+  }
+  const parsed = Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const resolveTableColumnWidth = (table: HTMLTableElement, columnIndex: number): number => {
+  const col = table.querySelector(`:scope > colgroup > col:nth-child(${columnIndex + 1})`) as HTMLTableColElement | null
+  if (col) {
+    const colWidth = parsePixels(col.style.width)
+    if (colWidth > 0) {
+      return colWidth
+    }
+    const rectWidth = col.getBoundingClientRect().width
+    if (rectWidth > 0) {
+      return rectWidth
+    }
+  }
+  const headerCell = table.tHead?.rows[0]?.cells[columnIndex] ?? table.rows[0]?.cells[columnIndex]
+  if (headerCell) {
+    const rect = headerCell.getBoundingClientRect()
+    if (rect.width > 0) {
+      return rect.width
+    }
+  }
+  return MANUAL_COLUMN_WIDTH_MIN
+}
+
+const ensureTableResizeHandles = (table: HTMLTableElement): void => {
+  const headerRow = table.tHead?.rows[0] ?? table.rows[0]
+  if (!headerRow) {
+    return
+  }
+  const headerCells = Array.from(headerRow.cells)
+  headerCells.forEach((cell, index) => {
+    let handle = cell.querySelector(
+      `:scope > [${TABLE_RESIZE_HANDLE_ATTR}="${index}"]`
+    ) as HTMLElement | null
+    if (!handle) {
+      handle = document.createElement('span')
+      handle.className = 'wysiwyg-table-col-resize-handle'
+      handle.setAttribute(TABLE_RESIZE_HANDLE_ATTR, String(index))
+      handle.setAttribute('aria-hidden', 'true')
+      handle.setAttribute('contenteditable', 'false')
+      cell.append(handle)
+    }
+  })
+
+  const handles = Array.from(table.querySelectorAll(`[${TABLE_RESIZE_HANDLE_ATTR}]`)) as HTMLElement[]
+  handles.forEach((handle) => {
+    const index = Number.parseInt(handle.getAttribute(TABLE_RESIZE_HANDLE_ATTR) ?? '', 10)
+    if (!Number.isFinite(index) || index >= headerCells.length) {
+      handle.remove()
+    }
+  })
 }
 
 const tableElementToMarkdown = (table: HTMLTableElement): string => {
@@ -1037,6 +1108,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const monacoThemeReadyRef = useRef(false)
   const tableToolbarRef = useRef<HTMLDivElement>(null)
   const activeTableRef = useRef<HTMLTableElement | null>(null)
+  const tableResizeDragRef = useRef<{ table: HTMLTableElement; state: ManualColumnWidthState } | null>(null)
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
   const [isCaseSensitiveFind, setIsCaseSensitiveFind] = useState(false)
@@ -1063,7 +1135,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const longPressTimerRef = useRef<number | null>(null)
 
   const closeTableToolbar = useCallback(() => {
+    if (activeTableRef.current) {
+      activeTableRef.current.removeAttribute(TABLE_RESIZE_ACTIVE_ATTR)
+      activeTableRef.current.removeAttribute(TABLE_RESIZE_DRAGGING_ATTR)
+    }
     activeTableRef.current = null
+    tableResizeDragRef.current = null
     setShowTableToolbar(false)
     setShowTableSizeGrid(false)
     setTableAlignment('left')
@@ -1113,6 +1190,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       const beforeMarkdown = htmlToMarkdown(editorRef.current)
       const beforeHtml = editorRef.current.innerHTML
       resizeTableTo(table, nextSize)
+      ensureTableResizeHandles(table)
       const afterMarkdown = htmlToMarkdown(editorRef.current)
       const afterHtml = editorRef.current.innerHTML
       structuralHistoryRef.current.push({
@@ -1290,7 +1368,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         return
       }
 
+      if (activeTableRef.current && activeTableRef.current !== table) {
+        activeTableRef.current.removeAttribute(TABLE_RESIZE_ACTIVE_ATTR)
+      }
       activeTableRef.current = table
+      table.setAttribute(TABLE_RESIZE_ACTIVE_ATTR, 'true')
+      ensureTableResizeHandles(table)
       const size = getTableSize(table)
       setTablePreviewRows(size.rows)
       setTablePreviewCols(size.cols)
@@ -1928,6 +2011,90 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       window.removeEventListener('keydown', handleWindowKeyDown)
     }
   }, [closeTableToolbar, openTableToolbarForTable, positionTableToolbar, showTableToolbar])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = tableResizeDragRef.current
+      if (!dragState) {
+        return
+      }
+      dragState.state = reduceManualColumnWidthState(dragState.state, {
+        type: 'update',
+        clientX: event.clientX
+      })
+      dragState.table.setAttribute(TABLE_MANUAL_WIDTH_ATTR, serializeManualColumnWidths(dragState.state.widths))
+      syncTableColgroupWidths(editor)
+      syncOverflowTableScrollviews(editor)
+    }
+
+    const stopDrag = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      const dragState = tableResizeDragRef.current
+      if (dragState) {
+        dragState.table.removeAttribute(TABLE_RESIZE_DRAGGING_ATTR)
+      }
+      tableResizeDragRef.current = null
+    }
+
+    const handlePointerUp = () => {
+      const dragState = tableResizeDragRef.current
+      if (dragState) {
+        dragState.state = reduceManualColumnWidthState(dragState.state, { type: 'end' })
+        dragState.table.setAttribute(TABLE_MANUAL_WIDTH_ATTR, serializeManualColumnWidths(dragState.state.widths))
+      }
+      stopDrag()
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      const handle = target?.closest(`[${TABLE_RESIZE_HANDLE_ATTR}]`) as HTMLElement | null
+      if (!handle) {
+        return
+      }
+      const table = handle.closest('table') as HTMLTableElement | null
+      if (!table || !editor.contains(table)) {
+        return
+      }
+      const columnIndex = Number.parseInt(handle.getAttribute(TABLE_RESIZE_HANDLE_ATTR) ?? '', 10)
+      if (!Number.isFinite(columnIndex)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const manualWidths = parseManualColumnWidths(table.getAttribute(TABLE_MANUAL_WIDTH_ATTR))
+      let state = createManualColumnWidthState(manualWidths)
+      state = reduceManualColumnWidthState(state, {
+        type: 'start',
+        columnIndex,
+        clientX: event.clientX,
+        currentWidth: resolveTableColumnWidth(table, columnIndex)
+      })
+      tableResizeDragRef.current = { table, state }
+      table.setAttribute(TABLE_RESIZE_DRAGGING_ATTR, 'true')
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      window.addEventListener('pointermove', handlePointerMove)
+      window.addEventListener('pointerup', handlePointerUp)
+      window.addEventListener('pointercancel', handlePointerUp)
+    }
+
+    editor.addEventListener('pointerdown', handlePointerDown)
+    return () => {
+      editor.removeEventListener('pointerdown', handlePointerDown)
+      stopDrag()
+    }
+  }, [])
 
   const handleInput = () => {
     if (!editorRef.current) {

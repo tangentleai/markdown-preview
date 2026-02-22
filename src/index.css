@@ -179,6 +179,36 @@ code {
 
 .markdown-preview th {
   @apply bg-gray-50 font-semibold;
+  position: relative;
+}
+
+.markdown-preview .wysiwyg-table-col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 12px;
+  height: 100%;
+  cursor: col-resize;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.markdown-preview .wysiwyg-table-col-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+  background-color: rgba(15, 23, 42, 0.35);
+}
+
+.markdown-preview table[data-table-resize-active='true'] .wysiwyg-table-col-resize-handle,
+.markdown-preview table[data-table-resize-dragging='true'] .wysiwyg-table-col-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .markdown-preview img {

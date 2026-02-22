@@ -5,6 +5,12 @@ import {
   type ColumnWidthMetricsOptions,
   type TextMeasure
 } from './wysiwygTableColumnWidths'
+import {
+  TABLE_MANUAL_WIDTH_ATTR,
+  normalizeManualColumnWidths,
+  parseManualColumnWidths,
+  type ManualColumnWidths
+} from './wysiwygTableManualColumnWidths'
 
 const DEFAULT_CHAR_WIDTH = 8
 
@@ -97,10 +103,36 @@ export const collectTableColumnConstraints = (
 export const computeTableColumnWidths = (
   table: HTMLTableElement,
   budget: number,
-  options: ColumnWidthMetricsOptions = {}
+  options: ColumnWidthMetricsOptions = {},
+  manualWidths?: ManualColumnWidths
 ): number[] => {
   const constraints = collectTableColumnConstraints(table, options)
-  return allocateColumnWidths(constraints, budget)
+  const normalizedManualWidths = manualWidths ? normalizeManualColumnWidths(manualWidths, constraints.length) : []
+  if (normalizedManualWidths.length === 0 || normalizedManualWidths.every((value) => value === null)) {
+    return allocateColumnWidths(constraints, budget)
+  }
+
+  const manualTotal = normalizedManualWidths.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+  const autoIndices = constraints.map((_, index) => index).filter((index) => normalizedManualWidths[index] === null)
+  if (autoIndices.length === 0) {
+    return normalizedManualWidths.map((value) => value ?? 0)
+  }
+
+  const autoConstraints = autoIndices.map((index) => constraints[index])
+  const remainingBudget = Math.max(0, budget - manualTotal)
+  const autoWidths =
+    remainingBudget > 0 ? allocateColumnWidths(autoConstraints, remainingBudget) : autoConstraints.map((column) => column.min)
+
+  let autoCursor = 0
+  return constraints.map((_, index) => {
+    const manual = normalizedManualWidths[index]
+    if (manual !== null && manual !== undefined) {
+      return manual
+    }
+    const width = autoWidths[autoCursor] ?? 0
+    autoCursor += 1
+    return width
+  })
 }
 
 const resolveTableBudget = (editor: HTMLElement, table: HTMLTableElement): number => {
@@ -134,7 +166,8 @@ export const syncTableColgroupWidths = (editor: HTMLElement): void => {
     if (budget <= 0) {
       return
     }
-    const widths = computeTableColumnWidths(table, budget)
+    const manualWidths = parseManualColumnWidths(table.getAttribute(TABLE_MANUAL_WIDTH_ATTR))
+    const widths = computeTableColumnWidths(table, budget, {}, manualWidths)
     if (widths.length === 0) {
       return
     }
