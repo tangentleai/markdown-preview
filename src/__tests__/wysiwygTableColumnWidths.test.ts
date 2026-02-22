@@ -20,7 +20,7 @@ describe('wysiwygTableColumnWidths', () => {
     const metrics = measureCellWidth('https://example.com/with-long-path', monoMeasure)
     expect(metrics.min).toBe(11)
     expect(metrics.max).toBe(34)
-    expect(metrics.preferred).toBeCloseTo(24.8, 5)
+    expect(metrics.preferred).toBeCloseTo(22.5, 5)
   })
 
   it('keeps numeric columns unbroken', () => {

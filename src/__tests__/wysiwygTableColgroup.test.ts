@@ -1,4 +1,8 @@
-import { computeTableColumnWidths, syncTableColgroupWidths } from '../utils/wysiwygTableColgroup'
+import {
+  collectTableColumnConstraints,
+  computeTableColumnWidths,
+  syncTableColgroupWidths
+} from '../utils/wysiwygTableColgroup'
 
 const defineSize = (target: object, key: 'clientWidth', value: number) => {
   Object.defineProperty(target, key, {
@@ -56,7 +60,9 @@ describe('syncTableColgroupWidths', () => {
       expect(width).toBeGreaterThan(0)
     })
 
-    const expected = computeTableColumnWidths(table, 360)
+    const preferredTotal = collectTableColumnConstraints(table).reduce((sum, column) => sum + column.preferred, 0)
+    const expectedBudget = Math.max(360, preferredTotal)
+    const expected = computeTableColumnWidths(table, expectedBudget)
     expect(expected.length).toBe(3)
     expected.forEach((value, index) => {
       expect(widths[index]).toBeCloseTo(value, 2)
@@ -64,10 +70,10 @@ describe('syncTableColgroupWidths', () => {
 
     const totalWidth = widths.reduce((sum, value) => sum + value, 0)
     const expectedTotal = expected.reduce((sum, value) => sum + value, 0)
-    if (expectedTotal <= 360 + 0.5) {
-      expect(totalWidth).toBeLessThanOrEqual(360 + 0.5)
+    if (expectedTotal <= expectedBudget + 0.5) {
+      expect(totalWidth).toBeLessThanOrEqual(expectedBudget + 0.5)
     } else {
-      expect(totalWidth).toBeGreaterThan(360)
+      expect(totalWidth).toBeGreaterThan(expectedBudget)
     }
   })
 
@@ -80,7 +86,9 @@ describe('syncTableColgroupWidths', () => {
     syncTableColgroupWidths(editor)
 
     const widths = getColgroupWidths(table)
-    const expected = computeTableColumnWidths(table, 120)
+    const preferredTotal = collectTableColumnConstraints(table).reduce((sum, column) => sum + column.preferred, 0)
+    const expectedBudget = Math.max(120, preferredTotal)
+    const expected = computeTableColumnWidths(table, expectedBudget)
     expect(widths.length).toBe(expected.length)
     const totalWidth = widths.reduce((sum, value) => sum + value, 0)
     const expectedTotal = expected.reduce((sum, value) => sum + value, 0)

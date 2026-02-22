@@ -11,7 +11,7 @@ export interface ColumnWidthMetricsOptions {
 
 export type TextMeasure = (text: string) => number
 
-const DEFAULT_MIN_BREAK_REGEX = /[\s/\\_-]+/g
+const DEFAULT_MIN_BREAK_REGEX = /[\s/\\_、，。；：？！…（）()【】《》“”‘’\-]+/g
 const DEFAULT_PREFERRED_RATIO = 0.6
 const EPSILON = 0.01
 

@@ -100,13 +100,20 @@ export const collectTableColumnConstraints = (
   return constraints
 }
 
-export const computeTableColumnWidths = (
-  table: HTMLTableElement,
+const sumPreferredWidths = (constraints: ColumnWidthConstraints[], manualWidths: ManualColumnWidths): number =>
+  constraints.reduce((sum, column, index) => {
+    const manual = manualWidths[index]
+    if (typeof manual === 'number') {
+      return sum + manual
+    }
+    return sum + column.preferred
+  }, 0)
+
+const computeTableColumnWidthsFromConstraints = (
+  constraints: ColumnWidthConstraints[],
   budget: number,
-  options: ColumnWidthMetricsOptions = {},
   manualWidths?: ManualColumnWidths
 ): number[] => {
-  const constraints = collectTableColumnConstraints(table, options)
   const normalizedManualWidths = manualWidths ? normalizeManualColumnWidths(manualWidths, constraints.length) : []
   if (normalizedManualWidths.length === 0 || normalizedManualWidths.every((value) => value === null)) {
     return allocateColumnWidths(constraints, budget)
@@ -133,6 +140,16 @@ export const computeTableColumnWidths = (
     autoCursor += 1
     return width
   })
+}
+
+export const computeTableColumnWidths = (
+  table: HTMLTableElement,
+  budget: number,
+  options: ColumnWidthMetricsOptions = {},
+  manualWidths?: ManualColumnWidths
+): number[] => {
+  const constraints = collectTableColumnConstraints(table, options)
+  return computeTableColumnWidthsFromConstraints(constraints, budget, manualWidths)
 }
 
 const resolveTableBudget = (editor: HTMLElement, table: HTMLTableElement): number => {
@@ -166,8 +183,12 @@ export const syncTableColgroupWidths = (editor: HTMLElement): void => {
     if (budget <= 0) {
       return
     }
+    const constraints = collectTableColumnConstraints(table, {})
     const manualWidths = parseManualColumnWidths(table.getAttribute(TABLE_MANUAL_WIDTH_ATTR))
-    const widths = computeTableColumnWidths(table, budget, {}, manualWidths)
+    const normalizedManualWidths = normalizeManualColumnWidths(manualWidths, constraints.length)
+    const preferredTotal = sumPreferredWidths(constraints, normalizedManualWidths)
+    const targetBudget = Math.max(budget, preferredTotal)
+    const widths = computeTableColumnWidthsFromConstraints(constraints, targetBudget, normalizedManualWidths)
     if (widths.length === 0) {
       return
     }
