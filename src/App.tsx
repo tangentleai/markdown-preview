@@ -5,6 +5,7 @@ import WysiwygEditor from './components/WysiwygEditor'
 import type { CoreFileHandle, RecentDocument } from './core/fileService'
 import { isMarkdownFileName } from './core/markdownFileService'
 import type { PlatformAdapter } from './adapters/platform-adapter'
+import { BlockInputRuleUndoStack } from './utils/wysiwygBlockInputRules'
 
 type EditorMode = 'dual-pane' | 'wysiwyg'
 
@@ -150,6 +151,7 @@ Alice -> Bob : 回复
   const [isOutlineDrawerOpen, setIsOutlineDrawerOpen] = useState<boolean>(false)
   const outlineResizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
   const recentMenuRef = useRef<HTMLDivElement | null>(null)
+  const structuralHistoryRef = useRef(new BlockInputRuleUndoStack())
 
   const updateMarkdown = useCallback((nextMarkdown: string) => {
     setMarkdown((currentMarkdown) => {
@@ -412,9 +414,9 @@ Alice -> Bob : 回复
   }, [editorMode, isOutlineDrawerOpen])
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-h-screen bg-white">
+      <header className="bg-[#F5F7FA] shadow-sm mb-0">
+        <div className="max-w-7xl px-4 py-4 sm:px-6 lg:px-4 flex flex-col gap-4 lg:flex-row lg:items-center">
           <h1 className="text-2xl font-bold text-gray-900">Markdown Preview</h1>
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="文件与编辑模式操作">
             <button
@@ -513,7 +515,7 @@ Alice -> Bob : 回复
             </button>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 pb-1 sm:px-6 lg:px-8 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+        <div className="max-w-7xl px-4 pb-0 sm:px-6 lg:px-4 flex flex-wrap items-center gap-2 text-sm text-gray-600">
           <span aria-label="当前文件">文件：{activeFileName}</span>
           <span className="text-gray-400">|</span>
           <span aria-label="保存状态">状态：{statusText}</span>
@@ -524,7 +526,7 @@ Alice -> Bob : 回复
       <main
         className={
           editorMode === 'wysiwyg'
-            ? 'w-full pt-2 pb-6 sm:pr-6 lg:pr-8'
+            ? 'w-full pt-0 pb-6 sm:pr-6 lg:pr-8'
             : 'max-w-7xl mx-auto pt-2 pb-6 sm:px-6 lg:px-8'
         }
       >
@@ -534,7 +536,7 @@ Alice -> Bob : 回复
             <MarkdownPreview markdown={markdown} />
           </div>
         ) : (
-          <div className="space-y-3">
+          <div>
             <div className="lg:hidden px-1">
               <button
                 type="button"
@@ -546,9 +548,6 @@ Alice -> Bob : 回复
                 大纲
               </button>
             </div>
-            {/* <p className="text-sm text-gray-600 px-1">
-              当前为 WYSIWYG 模式，单栏编辑区可直接编辑渲染结果并同步回 Markdown。
-            </p> */}
             {isOutlineDrawerOpen ? (
               <div className="fixed inset-0 z-40 lg:hidden" aria-label="移动端标题大纲抽屉">
                 <button
@@ -606,11 +605,11 @@ Alice -> Bob : 回复
               </div>
             ) : null}
             <div
-              className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--outline-width)_10px_minmax(0,1fr)]"
+              className="grid grid-cols-1 gap-0 lg:grid-cols-[var(--outline-width)_8px_minmax(0,1fr)]"
               aria-label="大纲与编辑区联动布局"
               style={{ '--outline-width': `${outlineWidth}px` } as React.CSSProperties}
             >
-              <aside className="hidden lg:block lg:sticky lg:top-4 lg:self-start rounded-lg border border-gray-200 bg-white p-3 max-h-[calc(100vh-120px)] overflow-y-auto" aria-label="标题大纲">
+              <aside className="hidden lg:block lg:sticky lg:top-0 lg:self-start bg-[#F5F7FA] p-3 rounded-none h-[100vh] overflow-y-auto" aria-label="标题大纲">
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">标题大纲</h3>
                 {outlineHeadings.length > 0 ? (
                   <ul className="space-y-1.5" aria-label="标题大纲列表">
@@ -656,18 +655,21 @@ Alice -> Bob : 回复
                   aria-valuemax={OUTLINE_WIDTH_MAX}
                   aria-valuenow={outlineWidth}
                   onPointerDown={handleOutlineResizePointerDown}
-                  className={`w-full h-full rounded transition-colors ${
-                    isOutlineResizing ? 'bg-blue-500/50' : 'bg-gray-200 hover:bg-blue-300/70'
+                  className={`w-full h-full transition-colors ${
+                    isOutlineResizing ? 'bg-blue-500/50' : 'hover:bg-blue-100/50'
                   }`}
-                />
+                >
+                  <span className={`block w-[1px] h-full transition-colors ${isOutlineResizing ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                </button>
               </div>
               <div className="w-full" aria-label="编辑区右侧列容器">
-                <div className="w-full lg:mx-auto lg:w-[68%]" aria-label="编辑区布局容器">
+                <div className="w-full lg:mx-auto lg:w-[78%]" aria-label="编辑区布局容器">
                   <WysiwygEditor
                     markdown={markdown}
                     setMarkdown={updateMarkdown}
                     jumpToHeadingIndex={jumpToHeadingIndex}
                     jumpRequestNonce={jumpRequestNonce}
+                    structuralHistoryRef={structuralHistoryRef}
                   />
                 </div>
               </div>

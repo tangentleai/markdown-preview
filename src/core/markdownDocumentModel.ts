@@ -18,7 +18,13 @@ export type BlockNode =
   | { type: 'quote'; blocks: BlockNode[] }
   | { type: 'codeBlock'; language: string; code: string }
   | { type: 'mathBlock'; tex: string }
-  | { type: 'table'; header: InlineNode[][]; rows: InlineNode[][][] }
+  | {
+      type: 'table'
+      header: InlineNode[][]
+      rows: InlineNode[][][]
+      align?: 'left' | 'center' | 'right'
+      alignExplicit?: boolean
+    }
 
 export interface DocumentModel {
   blocks: BlockNode[]
@@ -117,20 +123,34 @@ const isBracketBlockMathEnd = (line: string): boolean => /^\\\]\s*$/.test(line.t
 
 const isHeading = (line: string): boolean => /^(#{1,6})\s+/.test(line.trim())
 const isHorizontalRule = (line: string): boolean => /^(?:-{3,}|(?:-\s+){2,}-)\s*$/.test(line.trim())
+const TABLE_ALIGN_MARKER_RE = /^<!--\s*table:align=(left|center|right)\s*-->$/
 
 const isQuote = (line: string): boolean => /^>\s?/.test(line.trim())
 
 const isList = (line: string): boolean => /^([-*+])\s+/.test(line.trim()) || /^\d+\.\s+/.test(line.trim())
 
+const parseTableAlignMarker = (line: string): 'left' | 'center' | 'right' | null => {
+  const match = line.trim().match(TABLE_ALIGN_MARKER_RE)
+  return (match?.[1] as 'left' | 'center' | 'right' | undefined) ?? null
+}
+
 const parseMarkdownLines = (lines: string[]): BlockNode[] => {
   const blocks: BlockNode[] = []
   let index = 0
+  let pendingTableAlign: 'left' | 'center' | 'right' | null = null
 
   while (index < lines.length) {
     const line = lines[index]
     const trimmed = line.trim()
 
     if (!trimmed) {
+      index += 1
+      continue
+    }
+
+    const tableAlignMarker = parseTableAlignMarker(trimmed)
+    if (tableAlignMarker) {
+      pendingTableAlign = tableAlignMarker
       index += 1
       continue
     }
@@ -237,7 +257,18 @@ const parseMarkdownLines = (lines: string[]): BlockNode[] => {
         index += 1
       }
 
-      blocks.push({ type: 'table', header, rows })
+      blocks.push({
+        type: 'table',
+        header,
+        rows,
+        ...(pendingTableAlign
+          ? {
+              align: pendingTableAlign,
+              alignExplicit: true
+            }
+          : {})
+      })
+      pendingTableAlign = null
       continue
     }
 
@@ -372,7 +403,11 @@ const blockNodeToMarkdown = (node: BlockNode): string => {
       const toRow = (row: InlineNode[][]): string => `| ${row.map((cell) => cell.map(inlineNodeToMarkdown).join('')).join(' | ')} |`
       const delimiter = `| ${node.header.map(() => '---').join(' | ')} |`
       const rows = node.rows.map(toRow)
-      return [toRow(node.header), delimiter, ...rows].join('\n')
+      const tableMarkdown = [toRow(node.header), delimiter, ...rows].join('\n')
+      if (node.alignExplicit && node.align) {
+        return `<!-- table:align=${node.align} -->\n${tableMarkdown}`
+      }
+      return tableMarkdown
     }
     default:
       return ''
@@ -454,7 +489,9 @@ const blockNodeToHtml = (node: BlockNode): string => {
       const bodyRows = node.rows
         .map((row) => `<tr>${row.map((cell) => `<td>${cell.map(inlineNodeToHtml).join('')}</td>`).join('')}</tr>`)
         .join('')
-      return `<table><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>`
+      const alignAttr = node.alignExplicit && node.align ? ` data-table-align="${node.align}" data-table-align-explicit="true"` : ''
+      const alignClass = node.alignExplicit && node.align ? ` class="wysiwyg-table-align-${node.align}"` : ''
+      return `<table${alignAttr}${alignClass}><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>`
     }
     default:
       return ''

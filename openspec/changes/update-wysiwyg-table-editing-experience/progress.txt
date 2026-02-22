@@ -1,0 +1,11 @@
+[MONITOR] SESSION START | change=update-wysiwyg-table-editing-experience
+[STATE] RUN_COUNTER=8 | RUN_MAX=8
+[RUN 1] task=1.1-R1 worker_session=ses_37ef05b7cffeWjUOkxqUcHtXCb result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0001__task-1.1__ref-R1__20260221T164052Z/
+[RUN 2] task=1.2-R2 worker_session=ses_37ee62e9dffe8E7xZHI8TiACgn result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0002__task-1.2__ref-R2__20260221T165555Z/
+[RUN 3] task=1.3-R3 worker_session=ses_37ed57879ffezFu8kvkcw3PQPl result=FAIL reason=GUI acceptance failed: after deleting table and pressing Cmd+Z in WYSIWYG, dual-pane markdown did not restore table + `<!-- table:align=right -->` marker.
+[UNBLOCK] task=1.3-R3 guidance=Ensure delete-table operation writes a single undo transaction that includes both table node and adjacent alignment marker node; verify Cmd+Z from WYSIWYG restores both table markdown and marker in dual-pane, then Cmd+Shift+Z reapplies deletion.
+[RUN 4] task=1.3-R3 worker_session=ses_37ed57879ffezFu8kvkcw3PQPl result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0004__task-1.3__ref-R3__20260222T015537Z/
+[RUN 5] task=2.1-R4 worker_session=local-supervisor result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0004__task-2.1__ref-R4__20260222T024931Z/
+[RUN 6] task=2.2-R5 worker_session=local-supervisor result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0005__task-2.2__ref-R5__20260222T031215Z/
+[RUN 7] task=2.3-R6 worker_session=local-supervisor result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0007__task-2.3__ref-R6__20260222T033038Z/
+[RUN 8] task=2.4-R7 worker_session=local-supervisor result=PASS evidence=auto_test_openspec/update-wysiwyg-table-editing-experience/run-0008__task-2.4__ref-R7__20260222T093828Z/

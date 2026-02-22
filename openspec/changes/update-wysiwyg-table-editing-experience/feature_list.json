@@ -1,0 +1,95 @@
+{
+  "change_id": "update-wysiwyg-table-editing-experience",
+  "generated_at": "2026-02-22T09:47:30Z",
+  "features": {
+    "R1": {
+      "category": "functional",
+      "description": "实现表格聚焦触发的悬浮工具栏显示、定位与关闭机制",
+      "task_id": "1.1",
+      "accept": "点击或键盘聚焦表格时，工具栏在表格上方稳定显示；视口边缘自动翻转/偏移避免溢出；点击外部、Esc、切换非表格选区时关闭。",
+      "test": "SCOPE: GUI\n- 使用 GUI MCP runbook 验证显示时机、锚点定位、滚动跟随与关闭路径。",
+      "steps": [
+        "Run: SCOPE: GUI",
+        "Run: - 使用 GUI MCP runbook 验证显示时机、锚点定位、滚动跟随与关闭路径。"
+      ],
+      "passes": true
+    },
+    "R2": {
+      "category": "functional",
+      "description": "实现行列网格尺寸调整（含上限与裁剪确认）",
+      "task_id": "1.2",
+      "accept": "支持网格预览与确认设置尺寸；遵守 `200x40` 上限；缩小涉及非空裁剪时出现一次性确认；撤销/重做可恢复。",
+      "test": "SCOPE: MIXED\n- CLI: 运行尺寸变更与 Markdown 结构合法性测试（表头/分隔线/列数一致）。\n- GUI: 使用 GUI MCP runbook 验证网格交互、键盘操作（方向键/Enter/Esc）与裁剪确认流程。",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI: 运行尺寸变更与 Markdown 结构合法性测试（表头/分隔线/列数一致）。",
+        "Run: - GUI: 使用 GUI MCP runbook 验证网格交互、键盘操作（方向键/Enter/Esc）与裁剪确认流程。"
+      ],
+      "passes": true
+    },
+    "R3": {
+      "category": "functional",
+      "description": "实现表格对齐与删除能力及持久化联动",
+      "task_id": "1.3",
+      "accept": "左/中/右对齐互斥，保存为 `<!-- table:align=... -->` 并可回读；删除表格时同步移除标记并正确恢复焦点；撤销可整体恢复。",
+      "test": "SCOPE: MIXED\n- CLI: 覆盖对齐标记解析/序列化与删除联动单元测试。\n- GUI: 使用 GUI MCP runbook 验证按钮状态、删除确认、焦点恢复与回退行为。",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI: 覆盖对齐标记解析/序列化与删除联动单元测试。",
+        "Run: - GUI: 使用 GUI MCP runbook 验证按钮状态、删除确认、焦点恢复与回退行为。"
+      ],
+      "passes": true
+    },
+    "R4": {
+      "category": "functional",
+      "description": "实现列宽测量模型与分配算法（min/preferred/max）",
+      "task_id": "2.1",
+      "accept": "基于内容计算每列 min/preferred/max 宽度，按容器预算执行增长/收缩分配，结果稳定且可复现。",
+      "test": "SCOPE: CLI\n- 运行纯函数单元测试，覆盖长词/长链接/数字列/极端预算边界与收敛行为。",
+      "steps": [
+        "Run: SCOPE: CLI",
+        "Run: - 运行纯函数单元测试，覆盖长词/长链接/数字列/极端预算边界与收敛行为。"
+      ],
+      "passes": true
+    },
+    "R5": {
+      "category": "functional",
+      "description": "接入 `<colgroup>` 写入与重算时机，并保持与溢出滚动兜底协同",
+      "task_id": "2.2",
+      "accept": "在 WYSIWYG 渲染与尺寸变化后自动更新 `<colgroup>`；当压缩至最小仍超宽时继续使用既有横向滚动容器与提示。",
+      "test": "SCOPE: MIXED\n- CLI: 运行 DOM 集成测试，断言 `<colgroup>` 结构、列宽总和与预算关系。\n- GUI: 使用 GUI MCP runbook 验证宽表在小屏下断行与横向滚动兜底共存。",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI: 运行 DOM 集成测试，断言 `<colgroup>` 结构、列宽总和与预算关系。",
+        "Run: - GUI: 使用 GUI MCP runbook 验证宽表在小屏下断行与横向滚动兜底共存。"
+      ],
+      "passes": true
+    },
+    "R6": {
+      "category": "functional",
+      "description": "增强单元格断行策略与长内容可读性",
+      "task_id": "2.3",
+      "accept": "单元格默认支持 `overflow-wrap:anywhere` 与合理 `word-break`；长链接/代码不再轻易撑爆列，内容可读。",
+      "test": "SCOPE: MIXED\n- CLI: 运行样式与类名回归测试，断言关键样式规则存在。\n- GUI: 使用 GUI MCP runbook 在中英文、URL、代码混排场景验证可读性与稳定性。",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI: 运行样式与类名回归测试，断言关键样式规则存在。",
+        "Run: - GUI: 使用 GUI MCP runbook 在中英文、URL、代码混排场景验证可读性与稳定性。"
+      ],
+      "passes": true
+    },
+    "R7": {
+      "category": "functional",
+      "description": "实现列拖拽改宽与自动列宽协同策略",
+      "task_id": "2.4",
+      "accept": "列分隔手柄可拖拽改宽，宽度实时更新并受 `48px-720px` 约束；手动改宽仅在当前会话生效，刷新或重载后回到自动列宽策略。",
+      "test": "SCOPE: MIXED\n- CLI: 覆盖手动列宽状态机与 min/max 钳制逻辑单元测试。\n- GUI: 使用 GUI MCP runbook 验证拖拽交互、边界钳制、与自动列宽协同行为及重载后非持久化表现。",
+      "steps": [
+        "Run: SCOPE: MIXED",
+        "Run: - CLI: 覆盖手动列宽状态机与 min/max 钳制逻辑单元测试。",
+        "Run: - GUI: 使用 GUI MCP runbook 验证拖拽交互、边界钳制、与自动列宽协同行为及重载后非持久化表现。"
+      ],
+      "passes": true
+    }
+  }
+}
