@@ -66,6 +66,7 @@
 |------|------|
 | 框架 | React 18+、TypeScript |
 | 构建 | Vite 5 |
+| 桌面 | Electron |
 | 样式 | Tailwind CSS |
 | Markdown | react-markdown、remark-gfm、remark-math |
 | 代码编辑 | Monaco Editor |
@@ -81,13 +82,45 @@
 npm install
 ```
 
-### 开发模式
+### Web 开发模式
 
 ```bash
 npm run dev
 ```
 
-应用将在 `http://localhost:33100` 启动。
+Web 应用将在 `http://localhost:33100` 启动。
+
+### 桌面应用开发模式
+
+**方式一：一键启动（推荐）**
+
+同时启动 Vite 开发服务器和 Electron 桌面应用：
+
+```bash
+npm run desktop:dev
+```
+
+**方式二：分步启动**
+
+先启动开发服务器：
+
+```bash
+npm run dev
+```
+
+然后在另一个终端启动桌面应用：
+
+```bash
+npm run desktop
+```
+
+### 桌面应用预览模式
+
+不使用开发服务器，直接运行构建后的桌面应用：
+
+```bash
+npm run desktop:preview
+```
 
 ### 生产构建
 
@@ -201,33 +234,41 @@ console.log(greet('World'));
 ## 项目结构
 
 ```
-src/
-├── components/
-│   ├── MarkdownInput.tsx       # Markdown 文本输入组件
-│   ├── MarkdownPreview.tsx     # Markdown 预览组件
-│   └── WysiwygEditor.tsx       # WYSIWYG 编辑器组件
-├── utils/
-│   ├── markdownDocumentModel.ts # Markdown 文档模型
-│   ├── markdownFileIO.ts       # 文件读写工具
-│   ├── wysiwygBlockInputRules.ts # 块级输入规则
-│   └── wysiwygInlineStyleRules.ts # 行内样式规则
-├── types/
-│   ├── monaco-basic-languages.d.ts # Monaco 语言类型声明
-│   ├── plantuml-encoder.d.ts   # PlantUML 编码器类型
-│   ├── remark-mermaid.d.ts     # Mermaid 插件类型
-│   └── remark-plantuml.d.ts    # PlantUML 插件类型
-├── __tests__/
-│   ├── App.test.tsx            # 应用集成测试
-│   ├── MarkdownInput.test.tsx  # 输入组件测试
-│   ├── MarkdownPreview.test.tsx # 预览组件测试
-│   ├── markdownDocumentModel.test.ts # 文档模型测试
-│   ├── markdownFileIO.test.ts  # 文件 IO 测试
-│   ├── wysiwygBlockInputRules.test.ts # 块级规则测试
-│   ├── wysiwygDodRegression.test.tsx # 回归测试
-│   └── wysiwygInlineStyleRules.test.ts # 行内样式测试
-├── App.tsx                     # 主应用组件
-├── index.css                   # 全局样式
-└── main.tsx                    # 应用入口
+├── src/
+│   ├── components/
+│   │   ├── MarkdownInput.tsx       # Markdown 文本输入组件
+│   │   ├── MarkdownPreview.tsx     # Markdown 预览组件
+│   │   └── WysiwygEditor.tsx       # WYSIWYG 编辑器组件
+│   ├── shell/
+│   │   └── desktop-app-shell.tsx   # 桌面应用壳组件
+│   ├── utils/
+│   │   ├── markdownDocumentModel.ts # Markdown 文档模型
+│   │   ├── markdownFileIO.ts       # 文件读写工具
+│   │   ├── wysiwygBlockInputRules.ts # 块级输入规则
+│   │   └── wysiwygInlineStyleRules.ts # 行内样式规则
+│   ├── types/
+│   │   ├── monaco-basic-languages.d.ts # Monaco 语言类型声明
+│   │   ├── plantuml-encoder.d.ts   # PlantUML 编码器类型
+│   │   ├── remark-mermaid.d.ts     # Mermaid 插件类型
+│   │   └── remark-plantuml.d.ts    # PlantUML 插件类型
+│   ├── __tests__/
+│   │   ├── App.test.tsx            # 应用集成测试
+│   │   ├── MarkdownInput.test.tsx  # 输入组件测试
+│   │   ├── MarkdownPreview.test.tsx # 预览组件测试
+│   │   ├── markdownDocumentModel.test.ts # 文档模型测试
+│   │   ├── markdownFileIO.test.ts  # 文件 IO 测试
+│   │   ├── wysiwygBlockInputRules.test.ts # 块级规则测试
+│   │   ├── wysiwygDodRegression.test.tsx # 回归测试
+│   │   └── wysiwygInlineStyleRules.test.ts # 行内样式测试
+│   ├── App.tsx                     # Web 主应用组件
+│   ├── desktop.tsx                 # 桌面应用入口
+│   ├── index.css                   # 全局样式
+│   └── main.tsx                    # Web 应用入口
+├── electron/
+│   ├── main.cjs                    # Electron 主进程
+│   └── preload.cjs                 # Electron 预加载脚本
+├── desktop.html                    # 桌面应用 HTML 入口
+└── index.html                      # Web 应用 HTML 入口
 ```
 
 ## 许可证
