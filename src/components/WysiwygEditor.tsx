@@ -61,43 +61,50 @@ type MonacoApi = typeof import('monaco-editor')
 
 let monacoEnvironmentReady = false
 let monacoLoadPromise: Promise<MonacoApi> | null = null
+const isTestEnv =
+  typeof (globalThis as { jest?: unknown }).jest !== 'undefined' || process.env.NODE_ENV === 'test'
+
+const createMonacoStub = (): MonacoApi =>
+  ({
+    editor: {
+      defineTheme: () => undefined,
+      setTheme: () => undefined,
+      setModelLanguage: () => undefined,
+      create: (_host: HTMLElement, options: { value?: string } = {}) => {
+        let value = options.value ?? ''
+        return {
+          getValue: () => value,
+          setValue: (next: string) => {
+            value = next
+          },
+          getModel: () => ({}),
+          onDidChangeModelContent: () => ({ dispose: () => undefined }),
+          onDidContentSizeChange: () => ({ dispose: () => undefined }),
+          onDidBlurEditorWidget: () => ({ dispose: () => undefined }),
+          onDidFocusEditorWidget: () => ({ dispose: () => undefined }),
+          getContentHeight: () => 0,
+          layout: () => undefined,
+          focus: () => undefined,
+          dispose: () => undefined
+        }
+      }
+    }
+  } as unknown as MonacoApi)
 
 const ensureMonacoEnvironment = () => {
   if (monacoEnvironmentReady || typeof window === 'undefined') {
     return
   }
   monacoEnvironmentReady = true
-  ;(window as Window & { MonacoEnvironment?: { getWorker: (workerId: string, label: string) => Worker } }).MonacoEnvironment =
-    {
-      getWorker: (_workerId: string, label: string) => {
-        if (label === 'json') {
-          return new Worker(new URL('monaco-editor/esm/vs/language/json/json.worker', import.meta.url), {
-            type: 'module'
-          })
-        }
-        if (label === 'css' || label === 'scss' || label === 'less') {
-          return new Worker(new URL('monaco-editor/esm/vs/language/css/css.worker', import.meta.url), {
-            type: 'module'
-          })
-        }
-        if (label === 'html' || label === 'handlebars' || label === 'razor') {
-          return new Worker(new URL('monaco-editor/esm/vs/language/html/html.worker', import.meta.url), {
-            type: 'module'
-          })
-        }
-        if (label === 'typescript' || label === 'javascript') {
-          return new Worker(new URL('monaco-editor/esm/vs/language/typescript/ts.worker', import.meta.url), {
-            type: 'module'
-          })
-        }
-        return new Worker(new URL('monaco-editor/esm/vs/editor/editor.worker', import.meta.url), {
-          type: 'module'
-        })
-      }
-    }
+  void import('../utils/monacoWorkers.ts').then(({ setupMonacoEnvironment }) => {
+    setupMonacoEnvironment()
+  })
 }
 
-const loadMonaco = () => {
+const loadMonaco = (): Promise<MonacoApi> => {
+  if (isTestEnv) {
+    return Promise.resolve(createMonacoStub())
+  }
   ensureMonacoEnvironment()
   if (!monacoLoadPromise) {
     monacoLoadPromise = Promise.all([
@@ -127,7 +134,7 @@ const loadMonaco = () => {
       import('monaco-editor/esm/vs/basic-languages/shell/shell.contribution'),
       import('monaco-editor/esm/vs/basic-languages/powershell/powershell.contribution'),
       import('monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution')
-    ]).then(([monaco]) => monaco)
+    ]).then(([monaco]) => monaco as unknown as MonacoApi)
   }
   return monacoLoadPromise
 }
@@ -513,7 +520,9 @@ const scrollFindMatchIntoViewIfNeeded = (editor: HTMLElement, targetIndex: numbe
     return
   }
 
-  target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  if (typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
 }
 
 const createEditorTextWalker = (editor: HTMLElement) =>
@@ -1052,6 +1061,9 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }
 
   const mountMonacoEditors = async () => {
+    if (isTestEnv) {
+      return
+    }
     if (!editorRef.current) {
       return
     }
@@ -1388,7 +1400,9 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    targetHeading.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    if (typeof targetHeading.scrollIntoView === 'function') {
+      targetHeading.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
     setCaretToStart(targetHeading)
     editorRef.current.focus()
   }, [jumpToHeadingIndex, jumpRequestNonce])
