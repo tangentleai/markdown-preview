@@ -1,6 +1,40 @@
 import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from '../App'
+import type { PlatformAdapter } from '../adapters/platform-adapter'
+import type { CoreFileHandle } from '../core/fileService'
+
+const createTestAdapter = (
+  overrides: Partial<PlatformAdapter['fileService']> = {}
+): PlatformAdapter => {
+  const defaultHandle: CoreFileHandle = { id: 'test-handle', name: 'untitled.md' }
+  return {
+    fileService: {
+      openDocument: jest.fn(async () => ({
+        handle: defaultHandle,
+        content: '',
+        openedAt: new Date(0).toISOString()
+      })),
+      openDocumentFromFile: jest.fn(async (file: File) => ({
+        handle: { id: 'test-file', name: file.name },
+        content: '',
+        openedAt: new Date(0).toISOString()
+      })),
+      saveDocument: jest.fn(async (handle: CoreFileHandle) => ({
+        handle,
+        savedAt: new Date(0).toISOString()
+      })),
+      saveDocumentAs: jest.fn(async (suggestedName: string) => ({
+        handle: { id: 'test-save-as', name: suggestedName },
+        savedAt: new Date(0).toISOString()
+      })),
+      listRecentDocuments: jest.fn(async () => []),
+      ...overrides
+    }
+  }
+}
+
+const renderApp = (adapter: PlatformAdapter = createTestAdapter()) => render(<App adapter={adapter} />)
 
 const setCaretAtEnd = (element: HTMLElement): void => {
   const textNode = element.firstChild ?? element.appendChild(document.createTextNode(element.textContent ?? ''))
@@ -59,13 +93,13 @@ const selectTextAcrossNodes = (
 
 describe('App component', () => {
   it('should render the main application', () => {
-    render(<App />)
+    renderApp()
     
     expect(screen.getAllByText('Markdown Preview').length).toBeGreaterThanOrEqual(2)
   })
 
   it('should display the initial markdown content', () => {
-    render(<App />)
+    renderApp()
     
     expect(screen.getAllByText('Markdown Preview').length).toBeGreaterThanOrEqual(2)
     expect(screen.getAllByText('功能特性').length).toBeGreaterThanOrEqual(1)
@@ -73,14 +107,14 @@ describe('App component', () => {
   })
 
   it('should render both MarkdownInput and MarkdownPreview components', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     expect(screen.getByText('Markdown 输入')).toBeTruthy()
     expect(screen.getByText('预览效果')).toBeTruthy()
   })
 
   it('should switch between dual-pane and WYSIWYG modes while preserving markdown content', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
 
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
@@ -99,7 +133,7 @@ describe('App component', () => {
   })
 
   it('should support basic direct editing in WYSIWYG mode', () => {
-    render(<App />)
+    renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
@@ -115,21 +149,13 @@ describe('App component', () => {
   })
 
   it('should mark document dirty after edits and save via Ctrl/Cmd+S shortcut', async () => {
-    const write = jest.fn<Promise<void>, [Blob | string]>().mockResolvedValue()
-    const close = jest.fn<Promise<void>, []>().mockResolvedValue()
-    const handle = {
-      name: 'saved.md',
-      createWritable: jest.fn().mockResolvedValue({ write, close }),
-      getFile: jest.fn().mockResolvedValue({ name: 'saved.md' })
-    }
-    const showSaveFilePicker = jest.fn().mockResolvedValue(handle)
-    Object.defineProperty(window, 'showSaveFilePicker', {
-      configurable: true,
-      writable: true,
-      value: showSaveFilePicker
-    })
+    const saveDocumentAs = jest.fn(async () => ({
+      handle: { id: 'saved-handle', name: 'saved.md' },
+      savedAt: new Date(0).toISOString()
+    }))
+    const adapter = createTestAdapter({ saveDocumentAs })
 
-    render(<App />)
+    renderApp(adapter)
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
 
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
@@ -139,7 +165,7 @@ describe('App component', () => {
     fireEvent.keyDown(window, { key: 's', ctrlKey: true })
 
     await waitFor(() => {
-      expect(showSaveFilePicker).toHaveBeenCalledTimes(1)
+      expect(saveDocumentAs).toHaveBeenCalledTimes(1)
       expect(screen.getByLabelText('保存状态').textContent).toContain('已保存：saved.md')
     })
   })
@@ -156,7 +182,7 @@ describe('App component', () => {
     { trigger: '>', key: ' ', selector: 'blockquote p' },
     { trigger: '```', key: 'Enter', selector: 'pre code' }
   ])('should apply block input rule for %s and keep cursor editable', ({ trigger, key, selector }) => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -174,7 +200,7 @@ describe('App component', () => {
   })
 
   it('should not retrigger transform when typing space inside empty H2 after \"## \"', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -194,7 +220,7 @@ describe('App component', () => {
   })
 
   it('should allow normal paragraph after H2 heading created by \"## \"', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -208,7 +234,7 @@ describe('App component', () => {
   })
 
   it('should convert pasted markdown into formatted rich content and sync markdown', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -246,7 +272,7 @@ describe('App component', () => {
   })
 
   it('should not trigger block transform when Chinese IME composition is active', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -265,7 +291,7 @@ describe('App component', () => {
   })
 
   it('should undo one block transform back to pre-transform text state', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -283,7 +309,7 @@ describe('App component', () => {
   })
 
   it('should redo structural block transform after undo with shortcut', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -327,7 +353,7 @@ describe('App component', () => {
       expectedText: 'OpenAI'
     }
   ])('should apply inline style rule for $selector when closing marker is typed', ({ triggerText, key, selector, expectedText }) => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -345,7 +371,7 @@ describe('App component', () => {
   })
 
   it('should exit empty list item when pressing Enter', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -360,7 +386,7 @@ describe('App component', () => {
   })
 
   it('should exit empty blockquote when pressing Enter', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -375,7 +401,7 @@ describe('App component', () => {
   })
 
   it('should convert heading to paragraph when pressing Backspace at start', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -390,7 +416,7 @@ describe('App component', () => {
   })
 
   it('should include heading backspace transaction in undo and redo history', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -410,7 +436,7 @@ describe('App component', () => {
   })
 
   it('should support plain text find/replace current and replace-all in WYSIWYG mode', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -435,7 +461,7 @@ describe('App component', () => {
   })
 
   it('should support bidirectional find navigation with wrap-around in WYSIWYG mode', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -472,7 +498,7 @@ describe('App component', () => {
     { key: 'i', tag: 'em', text: 'italic' },
     { key: 'e', tag: 'code', text: 'code' }
   ])('should apply inline shortcut %s for selected text', ({ key, tag, text }) => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -492,7 +518,7 @@ describe('App component', () => {
       writable: true,
       value: jest.fn(() => 'blob:mock-local-image')
     })
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -522,7 +548,7 @@ describe('App component', () => {
   })
 
   it('should render inline math when closing $ is typed', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -539,7 +565,7 @@ describe('App component', () => {
   })
 
   it.skip('should render block math when pasting $$...$$ into WYSIWYG editor', async () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -563,7 +589,7 @@ describe('App component', () => {
   // removed button-based toggle; keyboard toggle test exists below
 
   it('should close find toolbar with Esc from find input, replace input, and editor focus while restoring editor typing', async () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -647,7 +673,7 @@ describe('App component', () => {
     { label: 'Ctrl+F', modifiers: { ctrlKey: true } },
     { label: 'Cmd+F', modifiers: { metaKey: true } }
   ])('should seed normalized selected text and index matches via $label', ({ modifiers }) => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -665,7 +691,7 @@ describe('App component', () => {
   })
 
   it('should navigate to next match by Enter and wrap from last to first', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -692,7 +718,7 @@ describe('App component', () => {
   })
 
   it('should reset find/replace inputs, states, counters, errors, highlights, and mode after close or Esc', async () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -755,7 +781,7 @@ describe('App component', () => {
   })
 
   it('should show consistent icon tooltips on hover, focus, and long-press', async () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -801,7 +827,7 @@ describe('App component', () => {
   })
 
   it('should render mermaid diagram in WYSIWYG and round-trip to markdown', async () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -831,7 +857,7 @@ describe('App component', () => {
   })
 
   it('should render plantuml diagram as image in WYSIWYG and round-trip', async () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -864,7 +890,7 @@ describe('App component', () => {
     })
   })
   it('should generate outline from H1-H6 in real time and jump to selected heading', () => {
-    render(<App />)
+    renderApp()
     const longSecondaryHeading = '二级标题用于验证左侧大纲在超长文本下能够自动换行并保持三行以内可读显示'
 
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
@@ -910,7 +936,7 @@ describe('App component', () => {
   it('should resize outline width with live layout sync and keep width non-persistent', () => {
     const setItemSpy = jest.spyOn(Storage.prototype, 'setItem')
 
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const layout = screen.getByLabelText('大纲与编辑区联动布局') as HTMLDivElement

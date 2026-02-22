@@ -2,16 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MarkdownInput from './components/MarkdownInput'
 import MarkdownPreview from './components/MarkdownPreview'
 import WysiwygEditor from './components/WysiwygEditor'
-import {
-  isMarkdownFileName,
-  type OpenFilePickerApi,
-  openMarkdownViaPicker,
-  readMarkdownFile,
-  type SaveFilePickerApi,
-  saveMarkdownAsViaPicker,
-  saveMarkdownViaHandle,
-  type MarkdownFileHandle
-} from './core/markdownFileService'
+import type { CoreFileHandle } from './core/fileService'
+import type { PlatformAdapter } from './adapters/platform-adapter'
 
 type EditorMode = 'dual-pane' | 'wysiwyg'
 
@@ -71,7 +63,11 @@ const toOutlineHeadings = (sourceMarkdown: string): OutlineHeading[] => {
     })
 }
 
-function App() {
+interface AppProps {
+  adapter: PlatformAdapter
+}
+
+function App({ adapter }: AppProps) {
   const [editorMode, setEditorMode] = useState<EditorMode>('wysiwyg')
   const [markdown, setMarkdown] = useState<string>(`# Markdown Preview
 
@@ -140,7 +136,7 @@ Alice -> Bob : 回复
 @enduml
 \`\`\`
 `)
-  const [activeFileHandle, setActiveFileHandle] = useState<MarkdownFileHandle | null>(null)
+  const [activeFileHandle, setActiveFileHandle] = useState<CoreFileHandle | null>(null)
   const [activeFileName, setActiveFileName] = useState<string>('untitled.md')
   const [isDirty, setIsDirty] = useState<boolean>(false)
   const [statusText, setStatusText] = useState<string>('未保存（新文档）')
@@ -149,7 +145,6 @@ Alice -> Bob : 回复
   const [outlineWidth, setOutlineWidth] = useState<number>(OUTLINE_WIDTH_DEFAULT)
   const [isOutlineResizing, setIsOutlineResizing] = useState<boolean>(false)
   const [isOutlineDrawerOpen, setIsOutlineDrawerOpen] = useState<boolean>(false)
-  const openFileInputRef = useRef<HTMLInputElement>(null)
   const outlineResizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
 
   const updateMarkdown = useCallback((nextMarkdown: string) => {
@@ -162,21 +157,11 @@ Alice -> Bob : 回复
     })
   }, [])
 
-  const markSaved = useCallback((fileName: string, handle: MarkdownFileHandle | null) => {
+  const markSaved = useCallback((fileName: string, handle: CoreFileHandle | null) => {
     setActiveFileName(fileName)
     setActiveFileHandle(handle)
     setIsDirty(false)
     setStatusText(`已保存：${fileName}`)
-  }, [])
-
-  const downloadMarkdown = useCallback((targetName: string, content: string) => {
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = targetName
-    anchor.click()
-    URL.revokeObjectURL(url)
   }, [])
 
   const handleOpen = useCallback(async () => {
@@ -185,51 +170,35 @@ Alice -> Bob : 回复
     }
 
     try {
-      const { handle, file, content } = await openMarkdownViaPicker(window as unknown as { showOpenFilePicker?: OpenFilePickerApi['showOpenFilePicker'] })
-      setMarkdown(content)
-      markSaved(file.name, handle)
+      const opened = await adapter.fileService.openDocument()
+      setMarkdown(opened.content)
+      markSaved(opened.handle.name, opened.handle)
     } catch (error) {
-      if ((error as Error).message === 'OPEN_PICKER_UNSUPPORTED') {
-        openFileInputRef.current?.click()
-        return
-      }
-
       if ((error as DOMException).name === 'AbortError') {
         return
       }
 
       setStatusText('打开失败：请选择 .md/.markdown 文件')
     }
-  }, [isDirty, markSaved])
+  }, [adapter, isDirty, markSaved])
 
   const handleSaveAs = useCallback(async () => {
     try {
-      const handle = await saveMarkdownAsViaPicker(
-        window as unknown as { showSaveFilePicker?: SaveFilePickerApi['showSaveFilePicker'] },
-        markdown,
-        activeFileName
-      )
-      const savedFile = await handle.getFile()
-      markSaved(savedFile.name, handle)
+      const saved = await adapter.fileService.saveDocumentAs(activeFileName, markdown)
+      markSaved(saved.handle.name, saved.handle)
     } catch (error) {
-      if ((error as Error).message === 'SAVE_PICKER_UNSUPPORTED') {
-        downloadMarkdown(activeFileName, markdown)
-        markSaved(activeFileName, null)
-        return
-      }
-
       if ((error as DOMException).name === 'AbortError') {
         return
       }
 
       setStatusText('另存为失败')
     }
-  }, [activeFileName, downloadMarkdown, markSaved, markdown])
+  }, [activeFileName, adapter, markSaved, markdown])
 
   const handleSave = useCallback(async () => {
     try {
       if (activeFileHandle) {
-        await saveMarkdownViaHandle(activeFileHandle, markdown)
+        await adapter.fileService.saveDocument(activeFileHandle, markdown)
         markSaved(activeFileName, activeFileHandle)
         return
       }
@@ -238,28 +207,7 @@ Alice -> Bob : 回复
     } catch {
       setStatusText('保存失败')
     }
-  }, [activeFileHandle, activeFileName, handleSaveAs, markSaved, markdown])
-
-  const handleOpenFallbackChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFile = event.target.files?.[0]
-      event.target.value = ''
-
-      if (!selectedFile) {
-        return
-      }
-
-      if (!isMarkdownFileName(selectedFile.name)) {
-        setStatusText('打开失败：仅支持 .md/.markdown')
-        return
-      }
-
-      const content = await readMarkdownFile(selectedFile)
-      setMarkdown(content)
-      markSaved(selectedFile.name, null)
-    },
-    [markSaved]
-  )
+  }, [activeFileHandle, activeFileName, adapter, handleSaveAs, markSaved, markdown])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -582,15 +530,6 @@ Alice -> Bob : 回复
           </div>
         )}
       </main>
-      <input
-        ref={openFileInputRef}
-        type="file"
-        accept=".md,.markdown,text/markdown"
-        className="hidden"
-        onChange={(event) => {
-          void handleOpenFallbackChange(event)
-        }}
-      />
       <footer className="bg-white border-t">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-sm text-gray-500 text-center">

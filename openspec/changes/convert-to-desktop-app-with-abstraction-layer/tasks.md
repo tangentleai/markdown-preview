@@ -14,11 +14,13 @@
   - EVIDENCE (RUN #3): supervisor executed mixed validation bundle | VALIDATED: bash auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/tests/test_cli_core_migration.sh (exit 0); MCP GUI runbook tests/gui_runbook_web_core_migration_unblock.md on http://localhost:33100 | RESULT: PASS | GUI_EVIDENCE: auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/outputs/gui-flow-a-edit-sync.png, auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/outputs/gui-flow-b-preview.png, auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0003__task-1.2__ref-R2__20260221T170637Z/outputs/gui-flow-c-find-replace.png
 
 ## 2. 平台适配层与桌面壳
-- [ ] 2.1 实现 Web/Desktop 双平台 adapter [#R3]
+- [x] 2.1 实现 Web/Desktop 双平台 adapter [#R3]
   - ACCEPT: `web` 与 `desktop` adapter 均实现统一接口，业务层无平台分支
   - TEST: SCOPE: CLI
     - 运行类型检查与 adapter 契约测试
     - 验证 adapter 替换时 core 测试可复用且通过
+  - BUNDLE (RUN #4): adapter CLI validation bundle ready | VALIDATION_BUNDLE: auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0004__task-2.1__ref-R3__20260222T110319Z/ | HOW_TO_RUN: run.sh/run.bat
+  - EVIDENCE (RUN #5): local adapter validation | VALIDATED: npx tsc --noEmit -p auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0004__task-2.1__ref-R3__20260222T110319Z/tests/tsconfig.adapters.json (exit 0); npm run test -- --runInBand src/__tests__/adapterContracts.test.ts (exit 0); npm run test -- --runInBand src/__tests__/coreBoundaryContracts.test.ts src/__tests__/coreSharedLogicMigration.test.ts (exit 0) | RESULT: PASS
 
 - [ ] 2.2 接入桌面壳并打通最小可用流程（打开、编辑、预览、保存） [#R4]
   - ACCEPT: 桌面应用可本地运行并完成文档打开、编辑、预览、保存、另存为、最近文件、拖拽打开闭环

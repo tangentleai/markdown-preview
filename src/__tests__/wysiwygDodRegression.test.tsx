@@ -1,8 +1,42 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import App from '../App'
+import type { PlatformAdapter } from '../adapters/platform-adapter'
+import type { CoreFileHandle } from '../core/fileService'
 import { parseMarkdownToDocumentModel, serializeDocumentModelToMarkdown } from '../utils/markdownDocumentModel'
 import { readMarkdownFile, saveMarkdownViaHandle, type MarkdownFileHandle, type MarkdownWritable } from '../utils/markdownFileIO'
+
+const createTestAdapter = (
+  overrides: Partial<PlatformAdapter['fileService']> = {}
+): PlatformAdapter => {
+  const defaultHandle: CoreFileHandle = { id: 'test-handle', name: 'untitled.md' }
+  return {
+    fileService: {
+      openDocument: jest.fn(async () => ({
+        handle: defaultHandle,
+        content: '',
+        openedAt: new Date(0).toISOString()
+      })),
+      openDocumentFromFile: jest.fn(async (file: File) => ({
+        handle: { id: 'test-file', name: file.name },
+        content: '',
+        openedAt: new Date(0).toISOString()
+      })),
+      saveDocument: jest.fn(async (handle: CoreFileHandle) => ({
+        handle,
+        savedAt: new Date(0).toISOString()
+      })),
+      saveDocumentAs: jest.fn(async (suggestedName: string) => ({
+        handle: { id: 'test-save-as', name: suggestedName },
+        savedAt: new Date(0).toISOString()
+      })),
+      listRecentDocuments: jest.fn(async () => []),
+      ...overrides
+    }
+  }
+}
+
+const renderApp = (adapter: PlatformAdapter = createTestAdapter()) => render(<App adapter={adapter} />)
 
 const setCaretAtEnd = (element: HTMLElement): void => {
   const textNode = element.firstChild ?? element.appendChild(document.createTextNode(element.textContent ?? ''))
@@ -67,7 +101,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should preserve markdown after dual-pane <-> WYSIWYG mode switch', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: '双栏模式' }))
     const textarea = screen.getByPlaceholderText('在这里输入 Markdown 文本...') as HTMLTextAreaElement
     const markdown = '# 模式回归\n\n切换后保持一致。'
@@ -80,7 +114,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should sync direct WYSIWYG edit back into markdown textarea', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -94,7 +128,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should apply heading block input transform in WYSIWYG editor', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -108,7 +142,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should block structure transform during IME composition', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -125,7 +159,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should keep structural undo/redo behavior for block transform', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -144,7 +178,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should apply inline style trigger and keep formatted node', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -158,7 +192,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should exit empty list and heading structures with Enter/Backspace rules', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -180,7 +214,7 @@ describe('DoD CLI regression suite', () => {
   })
 
   it('should run find/replace current+all and sync markdown value', () => {
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
@@ -209,7 +243,7 @@ describe('DoD CLI regression suite', () => {
       value: jest.fn(() => 'blob:mock-regression-image')
     })
 
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'WYSIWYG 模式' }))
 
     const editor = screen.getByRole('textbox', { name: 'WYSIWYG 编辑区' }) as HTMLDivElement
