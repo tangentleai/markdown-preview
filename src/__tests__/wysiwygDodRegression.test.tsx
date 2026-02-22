@@ -22,6 +22,11 @@ const createTestAdapter = (
         content: '',
         openedAt: new Date(0).toISOString()
       })),
+      openRecentDocument: jest.fn(async (handle: CoreFileHandle) => ({
+        handle,
+        content: '',
+        openedAt: new Date(0).toISOString()
+      })),
       saveDocument: jest.fn(async (handle: CoreFileHandle) => ({
         handle,
         savedAt: new Date(0).toISOString()

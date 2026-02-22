@@ -125,12 +125,28 @@ export const createWebAdapter = (dependencies: WebAdapterDependencies): Platform
     }
   }
 
+  const openRecentDocument = async (handle: CoreFileHandle): Promise<OpenedDocument> => {
+    const mappedHandle = handleMap.get(handle.id)
+    if (mappedHandle === undefined) {
+      throw new Error('HANDLE_UNTRACKED')
+    }
+    if (!mappedHandle) {
+      throw new Error('HANDLE_UNAVAILABLE')
+    }
+    const file = await mappedHandle.getFile()
+    const content = await readMarkdownFile(file)
+    const openedAt = now().toISOString()
+    recordRecent(handle, openedAt)
+    return { handle, content, openedAt }
+  }
+
   const listRecentDocuments = async (): Promise<RecentDocument[]> => recentDocuments
 
   return {
     fileService: {
       openDocument,
       openDocumentFromFile,
+      openRecentDocument,
       saveDocument,
       saveDocumentAs,
       listRecentDocuments

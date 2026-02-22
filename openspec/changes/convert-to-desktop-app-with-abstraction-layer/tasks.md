@@ -28,6 +28,7 @@
     - 运行桌面应用启动脚本
     - 按 MCP runbook 完成文件打开、编辑保存、另存为、最近文件入口回放、拖拽打开校验
     - 重新打开文件并校验内容一致
+  - BUNDLE (RUN #5): desktop GUI validation bundle ready | VALIDATION_BUNDLE: auto_test_openspec/convert-to-desktop-app-with-abstraction-layer/run-0005__task-2.2__ref-R4__20260222T131500Z/ | HOW_TO_RUN: run.sh/run.bat
 
 ## 3. 构建与一致性保障
 - [ ] 3.1 建立 Web/Desktop 双端构建与验证脚本 [#R5]

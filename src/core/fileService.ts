@@ -21,6 +21,7 @@ export interface RecentDocument {
 
 export interface FileServiceContract {
   openDocument: () => Promise<OpenedDocument>
+  openRecentDocument: (handle: CoreFileHandle) => Promise<OpenedDocument>
   saveDocument: (handle: CoreFileHandle, content: string) => Promise<SaveResult>
   saveDocumentAs: (suggestedName: string, content: string) => Promise<SaveResult>
   listRecentDocuments: () => Promise<RecentDocument[]>

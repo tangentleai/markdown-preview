@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MarkdownInput from './components/MarkdownInput'
 import MarkdownPreview from './components/MarkdownPreview'
 import WysiwygEditor from './components/WysiwygEditor'
-import type { CoreFileHandle } from './core/fileService'
+import type { CoreFileHandle, RecentDocument } from './core/fileService'
+import { isMarkdownFileName } from './core/markdownFileService'
 import type { PlatformAdapter } from './adapters/platform-adapter'
 
 type EditorMode = 'dual-pane' | 'wysiwyg'
@@ -140,12 +141,15 @@ Alice -> Bob : 回复
   const [activeFileName, setActiveFileName] = useState<string>('untitled.md')
   const [isDirty, setIsDirty] = useState<boolean>(false)
   const [statusText, setStatusText] = useState<string>('未保存（新文档）')
+  const [recentDocuments, setRecentDocuments] = useState<RecentDocument[]>([])
+  const [isRecentOpen, setIsRecentOpen] = useState<boolean>(false)
   const [jumpToHeadingIndex, setJumpToHeadingIndex] = useState<number | undefined>(undefined)
   const [jumpRequestNonce, setJumpRequestNonce] = useState(0)
   const [outlineWidth, setOutlineWidth] = useState<number>(OUTLINE_WIDTH_DEFAULT)
   const [isOutlineResizing, setIsOutlineResizing] = useState<boolean>(false)
   const [isOutlineDrawerOpen, setIsOutlineDrawerOpen] = useState<boolean>(false)
   const outlineResizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const recentMenuRef = useRef<HTMLDivElement | null>(null)
 
   const updateMarkdown = useCallback((nextMarkdown: string) => {
     setMarkdown((currentMarkdown) => {
@@ -164,6 +168,15 @@ Alice -> Bob : 回复
     setStatusText(`已保存：${fileName}`)
   }, [])
 
+  const refreshRecents = useCallback(async () => {
+    try {
+      const items = await adapter.fileService.listRecentDocuments()
+      setRecentDocuments(items)
+    } catch {
+      setRecentDocuments([])
+    }
+  }, [adapter])
+
   const handleOpen = useCallback(async () => {
     if (isDirty && !window.confirm('当前文档有未保存更改，继续打开将丢失改动。是否继续？')) {
       return
@@ -173,6 +186,7 @@ Alice -> Bob : 回复
       const opened = await adapter.fileService.openDocument()
       setMarkdown(opened.content)
       markSaved(opened.handle.name, opened.handle)
+      void refreshRecents()
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
         return
@@ -186,6 +200,7 @@ Alice -> Bob : 回复
     try {
       const saved = await adapter.fileService.saveDocumentAs(activeFileName, markdown)
       markSaved(saved.handle.name, saved.handle)
+      void refreshRecents()
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
         return
@@ -200,6 +215,7 @@ Alice -> Bob : 回复
       if (activeFileHandle) {
         await adapter.fileService.saveDocument(activeFileHandle, markdown)
         markSaved(activeFileName, activeFileHandle)
+        void refreshRecents()
         return
       }
 
@@ -208,6 +224,28 @@ Alice -> Bob : 回复
       setStatusText('保存失败')
     }
   }, [activeFileHandle, activeFileName, adapter, handleSaveAs, markSaved, markdown])
+
+  const handleOpenRecent = useCallback(
+    async (handle: CoreFileHandle) => {
+      if (isDirty && !window.confirm('当前文档有未保存更改，继续打开将丢失改动。是否继续？')) {
+        return
+      }
+
+      try {
+        const opened = await adapter.fileService.openRecentDocument(handle)
+        setMarkdown(opened.content)
+        markSaved(opened.handle.name, opened.handle)
+        setIsRecentOpen(false)
+        void refreshRecents()
+      } catch (error) {
+        if ((error as DOMException).name === 'AbortError') {
+          return
+        }
+        setStatusText('最近文件打开失败')
+      }
+    },
+    [adapter, isDirty, markSaved, refreshRecents]
+  )
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -222,6 +260,70 @@ Alice -> Bob : 回复
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [handleSave])
+
+  useEffect(() => {
+    void refreshRecents()
+  }, [refreshRecents])
+
+  useEffect(() => {
+    if (!isRecentOpen) {
+      return
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (recentMenuRef.current && target && !recentMenuRef.current.contains(target)) {
+        setIsRecentOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [isRecentOpen])
+
+  useEffect(() => {
+    const handleDragOver = (event: DragEvent) => {
+      const files = Array.from(event.dataTransfer?.files ?? [])
+      if (files.some((file) => isMarkdownFileName(file.name))) {
+        event.preventDefault()
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = 'copy'
+        }
+      }
+    }
+
+    const handleDrop = async (event: DragEvent) => {
+      const files = Array.from(event.dataTransfer?.files ?? [])
+      const markdownFile = files.find((file) => isMarkdownFileName(file.name))
+      if (!markdownFile) {
+        return
+      }
+      event.preventDefault()
+      if (isDirty && !window.confirm('当前文档有未保存更改，继续打开将丢失改动。是否继续？')) {
+        return
+      }
+      try {
+        const opened = await adapter.fileService.openDocumentFromFile(markdownFile)
+        setMarkdown(opened.content)
+        markSaved(opened.handle.name, opened.handle)
+        void refreshRecents()
+      } catch (error) {
+        if ((error as DOMException).name === 'AbortError') {
+          return
+        }
+        setStatusText('拖拽打开失败：请选择 .md/.markdown 文件')
+      }
+    }
+
+    window.addEventListener('dragover', handleDragOver)
+    window.addEventListener('drop', handleDrop)
+    return () => {
+      window.removeEventListener('dragover', handleDragOver)
+      window.removeEventListener('drop', handleDrop)
+    }
+  }, [adapter, isDirty, markSaved, refreshRecents])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -324,6 +426,49 @@ Alice -> Bob : 回复
             >
               打开
             </button>
+            <div className="relative" ref={recentMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isRecentOpen) {
+                    void refreshRecents()
+                  }
+                  setIsRecentOpen((current) => !current)
+                }}
+                aria-expanded={isRecentOpen}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              >
+                最近文件
+              </button>
+              {isRecentOpen ? (
+                <div
+                  className="absolute left-0 mt-2 w-64 rounded-md border border-gray-200 bg-white shadow-lg"
+                  role="menu"
+                  aria-label="最近文件列表"
+                >
+                  {recentDocuments.length > 0 ? (
+                    <ul className="max-h-64 overflow-y-auto py-1">
+                      {recentDocuments.map((item) => (
+                        <li key={item.handle.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleOpenRecent(item.handle)
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <div className="font-medium">{item.handle.name}</div>
+                            <div className="text-xs text-gray-400">{item.accessedAt}</div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">暂无最近文件</div>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={() => {

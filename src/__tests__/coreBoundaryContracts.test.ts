@@ -56,6 +56,7 @@ describe('core boundary contracts', () => {
       },
       fileService: {
         openDocument: jest.fn(),
+        openRecentDocument: jest.fn(),
         saveDocument: jest.fn(),
         saveDocumentAs: jest.fn(),
         listRecentDocuments: jest.fn()

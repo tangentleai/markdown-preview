@@ -77,6 +77,9 @@ describe('adapter contracts', () => {
     expect(showOpenFilePicker).toHaveBeenCalledTimes(1)
     expect(opened.content).toBe('# Opened')
 
+    const reopened = await adapter.fileService.openRecentDocument(opened.handle)
+    expect(reopened.content).toBe('# Opened')
+
     await adapter.fileService.saveDocument(opened.handle, '# Updated')
     expect(write).toHaveBeenCalledTimes(1)
     expect(close).toHaveBeenCalledTimes(1)
@@ -113,11 +116,17 @@ describe('adapter contracts', () => {
       handle: { id: 'desktop-3', name: 'saved.md' },
       savedAt: new Date(0).toISOString()
     })
+    const openRecentDocument = jest.fn().mockResolvedValue({
+      handle: { id: 'desktop-1', name: 'desktop.md' },
+      content: '# Desktop',
+      openedAt: new Date(0).toISOString()
+    })
     const listRecentDocuments = jest.fn().mockResolvedValue([])
 
     const adapter = createDesktopAdapter({
       openDocument,
       openDocumentFromFile,
+      openRecentDocument,
       saveDocument,
       saveDocumentAs,
       listRecentDocuments
@@ -125,12 +134,14 @@ describe('adapter contracts', () => {
 
     await adapter.fileService.openDocument()
     await adapter.fileService.openDocumentFromFile(buildMockMarkdownFile('dropped.md', '# Drop'))
+    await adapter.fileService.openRecentDocument({ id: 'desktop-1', name: 'desktop.md' })
     await adapter.fileService.saveDocument({ id: 'desktop-1', name: 'desktop.md' }, '# Updated')
     await adapter.fileService.saveDocumentAs('saved.md', '# Saved')
     await adapter.fileService.listRecentDocuments()
 
     expect(openDocument).toHaveBeenCalledTimes(1)
     expect(openDocumentFromFile).toHaveBeenCalledTimes(1)
+    expect(openRecentDocument).toHaveBeenCalledTimes(1)
     expect(saveDocument).toHaveBeenCalledTimes(1)
     expect(saveDocumentAs).toHaveBeenCalledTimes(1)
     expect(listRecentDocuments).toHaveBeenCalledTimes(1)
@@ -151,6 +162,11 @@ describe('adapter contracts', () => {
       openDocumentFromFile: jest.fn(async () => ({
         handle: { id: 'desktop-2', name: 'dropped.md' },
         content: '# Dropped',
+        openedAt: new Date(0).toISOString()
+      })),
+      openRecentDocument: jest.fn(async () => ({
+        handle: { id: 'desktop-1', name: 'desktop.md' },
+        content: '# Desktop',
         openedAt: new Date(0).toISOString()
       })),
       saveDocument: jest.fn(async (handle) => ({
