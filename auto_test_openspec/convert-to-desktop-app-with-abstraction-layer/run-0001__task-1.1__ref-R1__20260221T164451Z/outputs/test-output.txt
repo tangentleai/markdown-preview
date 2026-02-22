@@ -1,0 +1,4 @@
+[CHECK] static scan core boundary imports
+[CHECK] typecheck core boundary files
+[CHECK] run core contract unit test
+[DONE] core boundary validation commands finished
