@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron')
 const path = require('path')
 const fs = require('fs/promises')
 
@@ -6,6 +6,7 @@ const recentLimit = 10
 const handleMap = new Map()
 let recentDocuments = []
 let counter = 0
+let mainWindow = null
 
 const createHandleId = () => `desktop-${Date.now()}-${counter++}`
 
@@ -112,6 +113,133 @@ const registerIpc = () => {
   ipcMain.handle('desktop-list-recents', async () => recentDocuments)
 }
 
+const createMenu = () => {
+  const template = [
+    {
+      label: '文件',
+      submenu: [
+        {
+          label: '打开',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-open')
+            }
+          }
+        },
+        {
+          label: '保存',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-save')
+            }
+          }
+        },
+        {
+          label: '另存为',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-save-as')
+            }
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '退出',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+          click: () => {
+            app.quit()
+          }
+        }
+      ]
+    },
+    {
+      label: '编辑',
+      submenu: [
+        {
+          label: '撤销',
+          accelerator: 'CmdOrCtrl+Z',
+          role: 'undo'
+        },
+        {
+          label: '重做',
+          accelerator: 'CmdOrCtrl+Shift+Z',
+          role: 'redo'
+        },
+        { type: 'separator' },
+        {
+          label: '查找',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-find')
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: '视图',
+      submenu: [
+        {
+          label: 'WYSIWYG 模式',
+          accelerator: 'CmdOrCtrl+1',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-mode-wysiwyg')
+            }
+          }
+        },
+        {
+          label: '双栏模式',
+          accelerator: 'CmdOrCtrl+2',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-mode-dual-pane')
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: '帮助',
+      submenu: [
+        {
+          label: '开发者工具',
+          accelerator: 'F12',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools()
+            }
+          }
+        }
+      ]
+    }
+  ]
+
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.getName(),
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    })
+  }
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
+
 const createWindow = async () => {
   const win = new BrowserWindow({
     width: 1280,
@@ -123,6 +251,8 @@ const createWindow = async () => {
     }
   })
 
+  mainWindow = win
+
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) {
     await win.loadURL(devUrl)
@@ -133,6 +263,7 @@ const createWindow = async () => {
 
 app.whenReady().then(() => {
   registerIpc()
+  createMenu()
   void createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

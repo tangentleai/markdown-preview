@@ -129,7 +129,13 @@ describe('adapter contracts', () => {
       openRecentDocument,
       saveDocument,
       saveDocumentAs,
-      listRecentDocuments
+      listRecentDocuments,
+      onMenuOpen: jest.fn(),
+      onMenuSave: jest.fn(),
+      onMenuSaveAs: jest.fn(),
+      onMenuFind: jest.fn(),
+      onMenuModeWysiwyg: jest.fn(),
+      onMenuModeDualPane: jest.fn()
     })
 
     await adapter.fileService.openDocument()
@@ -177,7 +183,13 @@ describe('adapter contracts', () => {
         handle: { id: 'desktop-3', name: suggestedName },
         savedAt: new Date(0).toISOString()
       })),
-      listRecentDocuments: jest.fn(async () => [])
+      listRecentDocuments: jest.fn(async () => []),
+      onMenuOpen: jest.fn(),
+      onMenuSave: jest.fn(),
+      onMenuSaveAs: jest.fn(),
+      onMenuFind: jest.fn(),
+      onMenuModeWysiwyg: jest.fn(),
+      onMenuModeDualPane: jest.fn()
     })
 
     const webBoundary = createCoreBoundaryDefinition(buildCoreContracts(webAdapter.fileService))

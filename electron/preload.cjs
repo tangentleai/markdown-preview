@@ -19,5 +19,29 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   saveDocument: (handle, content) => ipcRenderer.invoke('desktop-save-document', handle, content),
   saveDocumentAs: (suggestedName, content) =>
     ipcRenderer.invoke('desktop-save-document-as', suggestedName, content),
-  listRecentDocuments: () => ipcRenderer.invoke('desktop-list-recents')
+  listRecentDocuments: () => ipcRenderer.invoke('desktop-list-recents'),
+  onMenuOpen: (callback) => {
+    ipcRenderer.on('menu-open', callback)
+    return () => ipcRenderer.removeListener('menu-open', callback)
+  },
+  onMenuSave: (callback) => {
+    ipcRenderer.on('menu-save', callback)
+    return () => ipcRenderer.removeListener('menu-save', callback)
+  },
+  onMenuSaveAs: (callback) => {
+    ipcRenderer.on('menu-save-as', callback)
+    return () => ipcRenderer.removeListener('menu-save-as', callback)
+  },
+  onMenuFind: (callback) => {
+    ipcRenderer.on('menu-find', callback)
+    return () => ipcRenderer.removeListener('menu-find', callback)
+  },
+  onMenuModeWysiwyg: (callback) => {
+    ipcRenderer.on('menu-mode-wysiwyg', callback)
+    return () => ipcRenderer.removeListener('menu-mode-wysiwyg', callback)
+  },
+  onMenuModeDualPane: (callback) => {
+    ipcRenderer.on('menu-mode-dual-pane', callback)
+    return () => ipcRenderer.removeListener('menu-mode-dual-pane', callback)
+  }
 })

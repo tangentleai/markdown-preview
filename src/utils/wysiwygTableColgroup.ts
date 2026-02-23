@@ -29,7 +29,7 @@ const getCellPadding = (cell: HTMLTableCellElement): number => {
   return parsePixels(style.paddingLeft) + parsePixels(style.paddingRight)
 }
 
-const resolveFont = (reference: HTMLElement, computed?: CSSStyleDeclaration): string => {
+const resolveFont = (_reference: HTMLElement, computed?: CSSStyleDeclaration): string => {
   if (computed?.font) {
     return computed.font
   }

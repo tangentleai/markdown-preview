@@ -143,6 +143,7 @@ export const createWebAdapter = (dependencies: WebAdapterDependencies): Platform
   const listRecentDocuments = async (): Promise<RecentDocument[]> => recentDocuments
 
   return {
+    isDesktop: false,
     fileService: {
       openDocument,
       openDocumentFromFile,
@@ -150,6 +151,7 @@ export const createWebAdapter = (dependencies: WebAdapterDependencies): Platform
       saveDocument,
       saveDocumentAs,
       listRecentDocuments
-    }
+    },
+    setupMenuHandlers: () => () => {}
   }
 }
