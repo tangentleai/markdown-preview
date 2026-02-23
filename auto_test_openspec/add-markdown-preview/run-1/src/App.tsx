@@ -18,13 +18,6 @@ function App() {
           <MarkdownPreview markdown={markdown} />
         </div>
       </main>
-      <footer className="bg-white border-t">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <p className="text-sm text-gray-500 text-center">
-            Built with React + TypeScript + Vite
-          </p>
-        </div>
-      </footer>
     </div>
   )
 }

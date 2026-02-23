@@ -76,20 +76,33 @@ export const collectTableColumnConstraints = (
   const columnCount = rows.reduce((max, row) => Math.max(max, row.length), 0)
   const measureText = createTextMeasurer(table)
   const constraints: ColumnWidthConstraints[] = []
+  
+  const fiveChineseCharsWidth = measureText('中中中')
 
   for (let colIndex = 0; colIndex < columnCount; colIndex += 1) {
     let min = 0
     let preferred = 0
     let max = 0
+    let hasContent = false
     rows.forEach((row) => {
       const cell = row[colIndex]
       const text = cell ? normalizeCellText(cell.textContent ?? '') : ''
       const padding = cell ? getCellPadding(cell) : 0
       const metrics = measureCellWidth(text, measureText, options)
+      if (text.length > 0) {
+        hasContent = true
+      }
       min = Math.max(min, metrics.min + padding)
       preferred = Math.max(preferred, metrics.preferred + padding)
       max = Math.max(max, metrics.max + padding)
     })
+    
+    if (!hasContent) {
+      min = Math.max(min, fiveChineseCharsWidth)
+      preferred = Math.max(preferred, fiveChineseCharsWidth)
+      max = Math.max(max, fiveChineseCharsWidth)
+    }
+    
     constraints.push({
       min,
       preferred: Math.min(Math.max(preferred, min), Math.max(max, min)),

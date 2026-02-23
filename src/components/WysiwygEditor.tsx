@@ -1145,7 +1145,13 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [tableAlignment, setTableAlignment] = useState<TableAlignment>('left')
   const [tablePreviewRows, setTablePreviewRows] = useState(1)
   const [tablePreviewCols, setTablePreviewCols] = useState(1)
+  const [rowsInputValue, setRowsInputValue] = useState('1')
+  const [colsInputValue, setColsInputValue] = useState('1')
   const [isTableSizeEditing, setIsTableSizeEditing] = useState(false)
+  const [isRowsEditing, setIsRowsEditing] = useState(false)
+  const [isColsEditing, setIsColsEditing] = useState(false)
+  const [originalRows, setOriginalRows] = useState(1)
+  const [originalCols, setOriginalCols] = useState(1)
   const [tableToolbarStyle, setTableToolbarStyle] = useState<React.CSSProperties>({
     left: '-9999px',
     top: '-9999px',
@@ -1177,6 +1183,10 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     const size = getTableSize(activeTable)
     setTablePreviewRows(size.rows)
     setTablePreviewCols(size.cols)
+    setRowsInputValue(String(size.rows))
+    setColsInputValue(String(size.cols))
+    setOriginalRows(size.rows)
+    setOriginalCols(size.cols)
   }, [])
 
   const applyTableResize = useCallback(
@@ -1975,6 +1985,12 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     const handleSelectionChange = () => {
       const editor = editorRef.current
       if (!editor) {
+        return
+      }
+
+      const toolbar = tableToolbarRef.current
+      const activeElement = document.activeElement
+      if (toolbar && activeElement && toolbar.contains(activeElement)) {
         return
       }
 
@@ -3587,6 +3603,10 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         className={`wysiwyg-table-toolbar ${showTableToolbar ? 'is-visible' : ''}`}
         style={tableToolbarStyle}
         onMouseDown={(event) => {
+          const target = event.target as HTMLElement | null
+          if (target?.closest('input, textarea')) {
+            return
+          }
           event.preventDefault()
         }}
       >
@@ -3621,6 +3641,14 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
               aria-label="表格尺寸网格"
               data-table-size-grid="true"
               onKeyDown={handleTableSizeGridKeyDown}
+              onMouseLeave={() => {
+                const activeTable = activeTableRef.current
+                if (activeTable) {
+                  const size = getTableSize(activeTable)
+                  setTablePreviewRows(size.rows)
+                  setTablePreviewCols(size.cols)
+                }
+              }}
             >
               {Array.from({ length: gridPreviewRowsMax }, (_, rowIndex) => (
                 <div
@@ -3652,6 +3680,11 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                         onClick={() => {
                           setTablePreviewRows(rowValue)
                           setTablePreviewCols(colValue)
+                          setRowsInputValue(String(rowValue))
+                          setColsInputValue(String(colValue))
+                          setOriginalRows(rowValue)
+                          setOriginalCols(colValue)
+                          applyTableResize(rowValue, colValue)
                         }}
                       />
                     )
@@ -3663,44 +3696,109 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
               <label>
                 行
                 <input
-                  type="number"
-                  min={1}
-                  max={TABLE_MAX_ROWS}
-                  value={tablePreviewRows}
-                  onFocus={() => setIsTableSizeEditing(true)}
-                  onBlur={() => setIsTableSizeEditing(false)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={isRowsEditing ? rowsInputValue : String(originalRows)}
+                  readOnly={!isRowsEditing}
+                  onClick={() => {
+                    if (!isRowsEditing) {
+                      setOriginalRows(tablePreviewRows)
+                      setRowsInputValue(String(tablePreviewRows))
+                      setIsRowsEditing(true)
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!isRowsEditing) {
+                      setOriginalRows(tablePreviewRows)
+                      setRowsInputValue(String(tablePreviewRows))
+                      setIsRowsEditing(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = Number.parseInt(rowsInputValue, 10)
+                    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= TABLE_MAX_ROWS) {
+                      setTablePreviewRows(parsed)
+                    } else {
+                      setRowsInputValue(String(originalRows))
+                    }
+                    setIsRowsEditing(false)
+                  }}
                   onChange={(event) => {
-                    const next = normalizeTargetTableSize(Number.parseInt(event.target.value, 10), tablePreviewCols)
-                    setTablePreviewRows(next.rows)
+                    const rawValue = event.target.value
+                    if (rawValue === '' || /^\d*$/.test(rawValue)) {
+                      setRowsInputValue(rawValue)
+                      if (rawValue !== '') {
+                        const parsed = Number.parseInt(rawValue, 10)
+                        if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= TABLE_MAX_ROWS) {
+                          setTablePreviewRows(parsed)
+                        }
+                      }
+                    }
                   }}
                 />
               </label>
               <label>
                 列
                 <input
-                  type="number"
-                  min={1}
-                  max={TABLE_MAX_COLS}
-                  value={tablePreviewCols}
-                  onFocus={() => setIsTableSizeEditing(true)}
-                  onBlur={() => setIsTableSizeEditing(false)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={isColsEditing ? colsInputValue : String(originalCols)}
+                  readOnly={!isColsEditing}
+                  onClick={() => {
+                    if (!isColsEditing) {
+                      setOriginalCols(tablePreviewCols)
+                      setColsInputValue(String(tablePreviewCols))
+                      setIsColsEditing(true)
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!isColsEditing) {
+                      setOriginalCols(tablePreviewCols)
+                      setColsInputValue(String(tablePreviewCols))
+                      setIsColsEditing(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = Number.parseInt(colsInputValue, 10)
+                    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= TABLE_MAX_COLS) {
+                      setTablePreviewCols(parsed)
+                    } else {
+                      setColsInputValue(String(originalCols))
+                    }
+                    setIsColsEditing(false)
+                  }}
                   onChange={(event) => {
-                    const next = normalizeTargetTableSize(tablePreviewRows, Number.parseInt(event.target.value, 10))
-                    setTablePreviewCols(next.cols)
+                    const rawValue = event.target.value
+                    if (rawValue === '' || /^\d*$/.test(rawValue)) {
+                      setColsInputValue(rawValue)
+                      if (rawValue !== '') {
+                        const parsed = Number.parseInt(rawValue, 10)
+                        if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= TABLE_MAX_COLS) {
+                          setTablePreviewCols(parsed)
+                        }
+                      }
+                    }
                   }}
                 />
               </label>
             </div>
-            {isTableSizeEditing && (
+            {(isRowsEditing || isColsEditing) && (
               <div className="wysiwyg-table-size-grid-footer">
                 <span className="wysiwyg-table-size-grid-limit">上限 {TABLE_MAX_ROWS} x {TABLE_MAX_COLS}</span>
                 <div className="wysiwyg-table-size-grid-actions">
                   <button
                     type="button"
                     className="wysiwyg-table-size-grid-action"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      setIsTableSizeEditing(false)
-                      syncPreviewSizeFromActiveTable()
+                      setTablePreviewRows(originalRows)
+                      setTablePreviewCols(originalCols)
+                      setRowsInputValue(String(originalRows))
+                      setColsInputValue(String(originalCols))
+                      setIsRowsEditing(false)
+                      setIsColsEditing(false)
                     }}
                   >
                     取消
@@ -3708,9 +3806,21 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                   <button
                     type="button"
                     className="wysiwyg-table-size-grid-action is-primary"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      applyTableResize(tablePreviewRows, tablePreviewCols)
-                      setIsTableSizeEditing(false)
+                      const rowsParsed = Number.parseInt(rowsInputValue, 10)
+                      const colsParsed = Number.parseInt(colsInputValue, 10)
+                      const validRows = !Number.isNaN(rowsParsed) && rowsParsed >= 1 && rowsParsed <= TABLE_MAX_ROWS ? rowsParsed : originalRows
+                      const validCols = !Number.isNaN(colsParsed) && colsParsed >= 1 && colsParsed <= TABLE_MAX_COLS ? colsParsed : originalCols
+                      setTablePreviewRows(validRows)
+                      setTablePreviewCols(validCols)
+                      applyTableResize(validRows, validCols)
+                      setOriginalRows(validRows)
+                      setOriginalCols(validCols)
+                      setRowsInputValue(String(validRows))
+                      setColsInputValue(String(validCols))
+                      setIsRowsEditing(false)
+                      setIsColsEditing(false)
                     }}
                   >
                     应用

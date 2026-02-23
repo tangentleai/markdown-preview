@@ -177,6 +177,16 @@ code {
   @apply border border-gray-300 px-4 py-2 text-left;
   overflow-wrap: anywhere;
   word-break: break-word;
+  min-height: 2.25rem;
+}
+
+.markdown-preview th:empty::before,
+.markdown-preview td:empty::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 1.5em;
+  vertical-align: middle;
 }
 
 .markdown-preview th {
