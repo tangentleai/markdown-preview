@@ -1383,8 +1383,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     const marginPx = 8
     const offsetPx = 10
 
-    let left = tableRect.left + tableRect.width / 2 - toolbarRect.width / 2
-    left = Math.min(Math.max(left, marginPx), Math.max(marginPx, viewportWidth - toolbarRect.width - marginPx))
+    let left = tableRect.left
 
     let nextPlacement: TableToolbarPlacement = 'top'
     let top = tableRect.top - toolbarRect.height - offsetPx
@@ -2040,6 +2039,15 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
 
       const toolbarElement = tableToolbarRef.current
+      
+      if (showTableSizeGrid) {
+        const gridPanelElement = toolbarElement?.querySelector('[data-table-size-grid-panel="true"]')
+        if (gridPanelElement && !gridPanelElement.contains(target)) {
+          setShowTableSizeGrid(false)
+          return
+        }
+      }
+
       if (toolbarElement?.contains(target)) {
         return
       }
@@ -2059,6 +2067,11 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         return
       }
 
+      if (showTableSizeGrid) {
+        setShowTableSizeGrid(false)
+        return
+      }
+
       closeTableToolbar()
     }
 
@@ -2073,7 +2086,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       document.removeEventListener('mousedown', handleOutsidePointerDown, true)
       window.removeEventListener('keydown', handleWindowKeyDown)
     }
-  }, [closeTableToolbar, openTableToolbarForTable, positionTableToolbar, showTableToolbar])
+  }, [closeTableToolbar, openTableToolbarForTable, positionTableToolbar, showTableToolbar, showTableSizeGrid, setShowTableSizeGrid])
 
   // 列宽拖拽功能已禁用
   useEffect(() => {

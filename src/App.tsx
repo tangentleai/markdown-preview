@@ -564,7 +564,7 @@ Alice -> Bob : 回复
       <main
         className={
           editorMode === 'wysiwyg'
-            ? 'w-full pt-0 pb-6 sm:pr-6 lg:pr-8'
+            ? 'w-full pt-0 pb-0 pr-0'
             : 'max-w-7xl mx-auto pt-2 pb-6 sm:px-6 lg:px-8'
         }
       >
