@@ -203,4 +203,43 @@ const value = 1
 
     expect(parseMarkdownToDocumentModel(serialized)).toEqual(parsed)
   })
+
+  it('should parse table with short delimiter (less than 3 dashes)', () => {
+    const markdown = `| 平台/工具 | 类型 | 语言支持 | 成本（区间/方式） |
+|:-:|---|:--|---|
+| 聚宽 JoinQuant | 云投研/回测平台 | Python（在线） | 基础功能免费 |
+| 米筐 Ricequant | 云+本地生态 | Python（为主） | 官方购买入口以询价为主 |`
+
+    const model = parseMarkdownToDocumentModel(markdown)
+    const tableBlock = model.blocks.find((block) => block.type === 'table')
+
+    expect(tableBlock).toBeDefined()
+    expect(tableBlock).toEqual({
+      type: 'table',
+      header: [
+        [{ type: 'text', value: '平台/工具' }],
+        [{ type: 'text', value: '类型' }],
+        [{ type: 'text', value: '语言支持' }],
+        [{ type: 'text', value: '成本（区间/方式）' }]
+      ],
+      rows: [
+        [
+          [{ type: 'text', value: '聚宽 JoinQuant' }],
+          [{ type: 'text', value: '云投研/回测平台' }],
+          [{ type: 'text', value: 'Python（在线）' }],
+          [{ type: 'text', value: '基础功能免费' }]
+        ],
+        [
+          [{ type: 'text', value: '米筐 Ricequant' }],
+          [{ type: 'text', value: '云+本地生态' }],
+          [{ type: 'text', value: 'Python（为主）' }],
+          [{ type: 'text', value: '官方购买入口以询价为主' }]
+        ]
+      ]
+    })
+
+    const html = markdownToEditableHtml(markdown)
+    expect(html).toContain('<table>')
+    expect(html).toContain('</table>')
+  })
 })

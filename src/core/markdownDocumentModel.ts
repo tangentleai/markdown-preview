@@ -105,7 +105,7 @@ const isTableDelimiter = (line: string): boolean => {
     return false
   }
 
-  return cells.every((cell) => /^:?-{3,}:?$/.test(cell))
+  return cells.every((cell) => /^:?-{1,}:?$/.test(cell))
 }
 
 const splitTableRow = (line: string): string[] =>

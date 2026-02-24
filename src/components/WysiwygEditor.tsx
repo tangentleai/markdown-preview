@@ -1501,7 +1501,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           /^```/.test(l) ||
           /^\$\$\s*$/.test(l) ||
           /^\\\[\s*$/.test(l) ||
-          /^\\\]\s*$/.test(l)
+          /^\\\]\s*$/.test(l) ||
+          /^\|.+\|/.test(l)
       )
     ) {
       return true
