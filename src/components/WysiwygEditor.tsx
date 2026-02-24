@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { markdownToEditableHtml } from '../core/markdownDocumentModel'
 import {
   BlockInputRuleUndoStack,
@@ -1125,6 +1126,11 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   } | null>(null)
   const monacoThemeReadyRef = useRef(false)
   const tableToolbarRef = useRef<HTMLDivElement>(null)
+  const editorContainerRef = useRef<HTMLDivElement>(null)
+  const tableIdCounterRef = useRef(1)
+  const tableToolbarContainersRef = useRef(new Map<string, HTMLElement>())
+  const activeToolbarContainerRef = useRef<HTMLElement | null>(null)
+  const [activeTableId, setActiveTableId] = useState<string | null>(null)
   const activeTableRef = useRef<HTMLTableElement | null>(null)
   // 列宽拖拽功能已禁用
   const [findQuery, setFindQuery] = useState('')
@@ -1165,6 +1171,8 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       activeTableRef.current.removeAttribute(TABLE_RESIZE_DRAGGING_ATTR)
     }
     activeTableRef.current = null
+    activeToolbarContainerRef.current = null
+    setActiveTableId(null)
     setShowTableToolbar(false)
     setShowTableSizeGrid(false)
     setTableAlignment('left')
@@ -1376,26 +1384,21 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
 
-    const tableRect = activeTableRef.current.getBoundingClientRect()
+    const table = activeTableRef.current
+    const containerRect = editorContainerRef.current?.getBoundingClientRect()
+    if (!containerRect) {
+      return
+    }
+    const anchor =
+      (table.closest('[data-table-scrollview="true"]') as HTMLElement | null) ?? table
+    const anchorRect = anchor.getBoundingClientRect()
     const toolbarRect = tableToolbarRef.current.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    const marginPx = 8
-    const offsetPx = 10
+    const offsetPx = 0
 
-    let left = tableRect.left
+    const left = Math.max(offsetPx, anchorRect.left - containerRect.left)
+    const top = Math.max(offsetPx, anchorRect.top - containerRect.top - toolbarRect.height + 30)
 
-    let nextPlacement: TableToolbarPlacement = 'top'
-    let top = tableRect.top - toolbarRect.height - offsetPx
-    if (top < marginPx) {
-      nextPlacement = 'bottom'
-      top = tableRect.bottom + offsetPx
-    }
-    if (nextPlacement === 'bottom' && top + toolbarRect.height > viewportHeight - marginPx) {
-      top = Math.max(marginPx, viewportHeight - toolbarRect.height - marginPx)
-    }
-
-    setTableToolbarPlacement(nextPlacement)
+    setTableToolbarPlacement('top')
     setTableToolbarStyle({
       left: `${left}px`,
       top: `${top}px`,
@@ -1428,7 +1431,38 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       } else {
         setTableAlignment('left')
       }
-      
+
+      const ensureTableId = () => {
+        let id = table.getAttribute('data-wysiwyg-table-id')
+        if (!id) {
+          id = `t${tableIdCounterRef.current++}`
+          table.setAttribute('data-wysiwyg-table-id', id)
+        }
+        return id
+      }
+      const id = ensureTableId()
+      setActiveTableId(id)
+      const ensureToolbarContainer = () => {
+        const root = editorContainerRef.current
+        if (!root) {
+          return null
+        }
+        const cached = tableToolbarContainersRef.current.get(id)
+        if (cached) {
+          return cached
+        }
+        const container = document.createElement('div')
+        container.setAttribute('data-table-toolbar-container', 'true')
+        container.setAttribute('data-for-table-id', id)
+        root.appendChild(container)
+        tableToolbarContainersRef.current.set(id, container)
+        return container
+      }
+      const container = ensureToolbarContainer()
+      activeToolbarContainerRef.current = container
+      if (container && tableToolbarRef.current && tableToolbarRef.current.parentElement !== container) {
+        container.appendChild(tableToolbarRef.current)
+      }
       setShowTableToolbar(true)
       window.requestAnimationFrame(() => {
         positionTableToolbar()
@@ -3396,7 +3430,7 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   }
 
   return (
-    <div className="relative bg-white p-4">
+    <div ref={editorContainerRef} className="relative bg-white p-4">
         <div
           aria-label="查找替换工具栏"
           aria-hidden={!showFindToolbar}
