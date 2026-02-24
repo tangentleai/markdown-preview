@@ -3129,36 +3129,31 @@ const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       return
     }
     const text = event.clipboardData.getData('text/plain') ?? ''
-    if (!text || !looksLikeMarkdown(text)) {
+    if (!text) {
       return
     }
-    event.preventDefault()
-    try {
-      const html = markdownToEditableHtml(text)
-      const template = document.createElement('template')
-      template.innerHTML = html
-      const nodes = Array.from(template.content.childNodes)
-      const selection = window.getSelection()
-      const block =
-        selection && selection.isCollapsed && selection.rangeCount > 0
-          ? getClosestBlockElement(selection.anchorNode, editorRef.current)
-          : null
-      insertNodesAfterBlockOrAppend(editorRef.current, block, nodes)
-      const nextMarkdown = htmlToMarkdown(editorRef.current)
-      editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
-      lastSyncedMarkdownRef.current = nextMarkdown
-      if (nextMarkdown !== markdownRef.current) {
-        setMarkdown(nextMarkdown)
-      }
-    } catch (error) {
-      console.warn('Markdown 粘贴解析失败，降级为纯文本插入', error)
-      const fallback = document.createTextNode(text)
-      insertNodesAfterBlockOrAppend(editorRef.current, null, [fallback])
-      const nextMarkdown = htmlToMarkdown(editorRef.current)
-      editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
-      lastSyncedMarkdownRef.current = nextMarkdown
-      if (nextMarkdown !== markdownRef.current) {
-        setMarkdown(nextMarkdown)
+    
+    if (looksLikeMarkdown(text)) {
+      event.preventDefault()
+      try {
+        const html = markdownToEditableHtml(text)
+        const template = document.createElement('template')
+        template.innerHTML = html
+        const nodes = Array.from(template.content.childNodes)
+        const selection = window.getSelection()
+        const block =
+          selection && selection.isCollapsed && selection.rangeCount > 0
+            ? getClosestBlockElement(selection.anchorNode, editorRef.current)
+            : null
+        insertNodesAfterBlockOrAppend(editorRef.current, block, nodes)
+        const nextMarkdown = htmlToMarkdown(editorRef.current)
+        editorRef.current.innerHTML = markdownToEditableHtml(nextMarkdown)
+        lastSyncedMarkdownRef.current = nextMarkdown
+        if (nextMarkdown !== markdownRef.current) {
+          setMarkdown(nextMarkdown)
+        }
+      } catch (error) {
+        console.warn('Markdown 粘贴解析失败，使用默认粘贴行为', error)
       }
     }
   }
